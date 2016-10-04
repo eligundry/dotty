@@ -92,12 +92,10 @@ def dotty(data={}, replace=False):
                 // Directories can be linked too
                 "emacs/lisp/": "~/.emacs.d/lisp"
             },
-
+            // files you want to be copied
             "copy": {
-                // files you want to be copied
                 "offlineimaprc": "~/.offlineimaprc"
             },
-
             "commands": ["emacs -batch -Q -l ~/.emacs.d/firstrun.el"]
         }
 
@@ -105,15 +103,21 @@ def dotty(data={}, replace=False):
         data (dict): The JSON mappings to link.
         replace (bool): Should existing symlinks and directories be replaced?
     """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("config", help="the JSON file you want to use",
-                        default=data)
-    parser.add_argument("-r", "--replace", action="store_true",
-                        help="replace files/folders if they already exist",
-                        default=replace)
-    args = parser.parse_args()
-    js = json.load(open(args.config))
-    os.chdir(os.path.expanduser(os.path.abspath(os.path.dirname(args.config))))
+    if not data:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("config", help="the JSON file you want to use",
+                            default=data)
+        parser.add_argument("-r", "--replace", action="store_true",
+                            help="replace files/folders if they already exist",
+                            default=replace)
+        args = parser.parse_args()
+        js = json.load(open(args.config))
+        replace = args.replace
+        os.chdir(
+            os.path.expanduser(os.path.abspath(os.path.dirname(args.config)))
+        )
+    else:
+        js = data
 
     directories = js.get("directories", [])
     links = js.get("link", {})
@@ -127,7 +131,7 @@ def dotty(data={}, replace=False):
         create_directory(path)
 
     for src in links:
-        create_symlink(src, links[src], args.replace)
+        create_symlink(src, links[src], replace)
 
     for src in copy:
         copy_path(src, copy[src])

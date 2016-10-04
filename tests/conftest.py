@@ -6,10 +6,6 @@ from shutil import rmtree
 import pytest
 
 
-def noop(*args, **kwargs):
-    """A simple mock side effect that will do nothing."""
-
-
 @pytest.fixture
 def link_mapping():
     """Returns the mappings needed for to create a link with dotty."""
@@ -19,7 +15,7 @@ def link_mapping():
         'tests/assets/src/zshrc': 'tests/assets/target/.zshrc',
     }
 
-    return mappings
+    return _transform_paths(mappings)
 
 
 @pytest.fixture
@@ -30,13 +26,26 @@ def copy_mapping():
         'tests/assets/src/bin': 'tests/assets/target/bin',
     }
 
+    return _transform_paths(mappings)
+
+
+def _transform_paths(mappings):
+    """Transforms the values in a provided mapping to a full path relative to
+    the current directory.
+    """
+    if isinstance(mappings, dict):
+        for key, value in mappings.items():
+            mappings[key] = os.path.abspath(value)
+    else:
+        for idx, value in enumerate(mappings):
+            mappings[idx] = os.path.abspath(value)
+
     return mappings
 
 @pytest.fixture
-def assets(mock_ask_user, link_mapping, copy_mapping):
+def assets(link_mapping, copy_mapping):
     """Fixture that will create the tests assets and delete them when finished.
     """
-    assert mock.ask_user
     assets_dir = 'tests/assets'
 
     for folder in ('src', 'target'):
@@ -49,6 +58,6 @@ def assets(mock_ask_user, link_mapping, copy_mapping):
             with open(test_file, 'w') as filehandler:
                 filehandler.write('a')
 
-    yield True
+    yield {'pytest': 'is silly about yield'}
 
     rmtree(assets_dir)

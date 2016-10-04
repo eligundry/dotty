@@ -15,28 +15,26 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+import argparse
 import json
 import os
 import shutil
+from distutils.util import strtobool
 from sys import stderr
-import argparse
 
 
 def ask_user(prompt):
-    valid = {"yes":True, 'y':True, '':True, "no":False, 'n':False}
     while True:
-        print(prompt+" ",end="")
-        choice = input().lower()
-        if choice in valid:
-            return valid[choice]
-        else:
+        try:
+            return bool(strtobool(input(prompt + " ").lower()))
+        except ValueError:
             print("Enter a correct choice.", file=stderr)
 
 
 def create_directory(path):
     exp = os.path.expanduser(path)
     if (not os.path.isdir(exp)):
-        print(exp+" doesnt exist, creating.")
+        print(exp + " doesnt exist, creating.")
         os.makedirs(exp)
 
 
@@ -47,7 +45,7 @@ def create_symlink(src, dest, replace):
         if os.path.islink(dest) and os.readlink(dest) == src:
             print("Skipping existing {0} -> {1}".format(dest, src))
             return
-        elif replace or ask_user(dest+" exists, delete it? [Y/n]"):
+        elif replace or ask_user(dest + " exists, delete it? [Y/n]"):
             if os.path.isfile(dest):
                 os.remove(dest)
             else:
@@ -62,7 +60,7 @@ def copy_path(src, dest):
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
     if os.path.exists(dest):
-        if ask_user(dest+ " exists, delete it? [Y/n]"):
+        if ask_user(dest + " exists, delete it? [Y/n]"):
             if os.path.isfile(dest):
                 os.remove(dest)
             else:
@@ -80,37 +78,75 @@ def run_command(command):
     os.system(command)
 
 
-def main():
+def dotty(data={}, replace=False):
+    """Runs the dotty linker. An example of the JSON that needs to be something
+    like this:
+
+    .. code-block:: json
+        {
+            "directories": ["~/emacs.d"],
+
+            "link": {
+                "source": "dest",
+                "zshrc": "~/.zshrc"
+                // Directories can be linked too
+                "emacs/lisp/": "~/.emacs.d/lisp"
+            },
+
+            "copy": {
+                // files you want to be copied
+                "offlineimaprc": "~/.offlineimaprc"
+            },
+
+            "commands": ["emacs -batch -Q -l ~/.emacs.d/firstrun.el"]
+        }
+
+    Args:
+        data (dict): The JSON mappings to link.
+        replace (bool): Should existing symlinks and directories be replaced?
+    """
     parser = argparse.ArgumentParser()
-    parser.add_argument("config", help="the JSON file you want to use")
+    parser.add_argument("config", help="the JSON file you want to use",
+                        default=data)
     parser.add_argument("-r", "--replace", action="store_true",
-                        help="replace files/folders if they already exist")
+                        help="replace files/folders if they already exist",
+                        default=replace)
     args = parser.parse_args()
     js = json.load(open(args.config))
     os.chdir(os.path.expanduser(os.path.abspath(os.path.dirname(args.config))))
 
-    directories = js.get("directories")
-    links = js.get("link")
-    copy = js.get("copy")
-    commands = js.get("commands")
-    pacman = js.get("pacman")
+    directories = js.get("directories", [])
+    links = js.get("link", {})
+    copy = js.get("copy", {})
+    commands = js.get("commands", [])
+    pacman = js.get("pacman", [])
+    apt = js.get("apt", [])
+    brew = js.get("brew", [])
 
-    if directories: [create_directory(path) for path in directories]
+    for path in directories:
+        create_directory(path)
 
-    if links: [create_symlink(src, links[src], args.replace) for src in links]
+    for src in links:
+        create_symlink(src, links[src], args.replace)
 
-    if copy: [copy_path(src, copy[src]) for src in copy]
+    for src in copy:
+        copy_path(src, copy[src])
 
-    if commands: [run_command(command) for command in commands]
+    for command in commands:
+        run_command(command)
 
     if pacman:
-        packages = ""
-        for package in pacman:
-            packages += package + " "
+        run_command("sudo pacman -S {0}".format(" ".join(pacman)))
 
-        run_command("sudo pacman -S "+packages)
+    if apt:
+        run_command("sudo apt-get update && "
+                    "sudo apt-get install {0}".format(" " .join(apt)))
+
+    if brew:
+        run_command("brew update && brew install {0}".format(" ".join(brew)))
 
     print("Done!")
 
+
 if __name__ == "__main__":
-    main()
+    dotty()

@@ -126,12 +126,15 @@ def _merge_dicts(*args):
 
 
 def program_exists(program):
-    if hasattr(shutil, 'which'):
+    """Checks if a CLI program exists."""
+    try:
         return bool(shutil.which(program))
+    except AttributeError:
+        pass
 
     try:
         return bool(
-            subprocess.check_output(['which', program], shell=True)
+            subprocess.check_output('which {0}'.format(program), shell=True)
         )
     except subprocess.CalledProcessError:
         return False

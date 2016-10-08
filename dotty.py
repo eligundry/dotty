@@ -120,7 +120,7 @@ def _merge_dicts(*args):
 
 
 def program_exists(program):
-    if not PY2:
+    if not hasattr(shutil, 'which'):
         return bool(shutil.which(program))
 
     try:

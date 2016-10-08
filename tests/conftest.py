@@ -1,11 +1,13 @@
 """Set of fixtures to be used by the tests."""
 # pylint: disable=redefined-outer-name
 import os
-import platform
 from shutil import rmtree
 
 import mock
 import pytest
+
+
+ASSETS_DIR = 'tests/assets'
 
 
 @pytest.fixture
@@ -34,11 +36,24 @@ def copy_mapping():
 @pytest.fixture
 def directory_list():
     """Returns a list of directories to create."""
-    return _transform_paths([
+    yield _transform_paths([
         'tests/assets/target/dir1',
         'tests/assets/target/dir2',
         'tests/assets/target/dir3',
     ])
+
+    rmtree(ASSETS_DIR)
+
+
+@pytest.fixture
+def git_repo_mapping():
+    """Returns a mapping of Git repos to clone."""
+    return {
+        'https://github.com/vibhavp/dotty.git': 'tests/assets/target/dotty',
+        'https://github.com/robbyrussell/oh-my-zsh.git': (
+            'tests/assets/target/omz'
+        ),
+    }
 
 
 @pytest.fixture
@@ -105,10 +120,8 @@ def _transform_paths(mappings):
 def assets(link_mapping, copy_mapping):
     """Fixture that will create the tests assets and delete them when finished.
     """
-    assets_dir = 'tests/assets'
-
     for folder in ('src', 'target'):
-        folder = os.path.join(assets_dir, folder)
+        folder = os.path.join(ASSETS_DIR, folder)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
@@ -119,4 +132,4 @@ def assets(link_mapping, copy_mapping):
 
     yield {'pytest': 'is silly about yield'}
 
-    rmtree(assets_dir)
+    rmtree(ASSETS_DIR)

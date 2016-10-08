@@ -13,6 +13,11 @@ def noop(*args, **kwargs):
     """
 
 
+def fake_git_clone(_, dest):
+    """A mock for Git clone that will create an empty directory."""
+    os.makedirs(dest)
+
+
 @mock.patch('dotty.ask_user', return_value=True)
 def test_link_files(mock_ask, assets, link_mapping):
     """Ensure that files link correctly."""
@@ -23,6 +28,7 @@ def test_link_files(mock_ask, assets, link_mapping):
         assert os.path.islink(target)
         assert os.path.realpath(target) == os.path.abspath(src)
 
+    assert assets
     assert mock_ask.call_count is not None
 
 
@@ -36,6 +42,7 @@ def test_copy_files(mock_ask, assets, copy_mapping):
         assert os.path.isfile(target)
         assert not os.path.islink(target)
 
+    assert assets
     assert mock_ask.call_count is not None
 
 
@@ -67,3 +74,25 @@ def test_install_packages(mock_run, mock_exists, package_list):
 
     assert mock_exists.call_count == 3
     assert mock_run.call_count == 1
+
+
+@mock.patch('dotty.run_command', side_effect=noop)
+def test_clone_git_repos_mock(mock_run, git_repo_mapping):
+    """Ensure that Git repos are cloned properly with no dirs created."""
+    payload = {'git_repos': git_repo_mapping}
+    dotty(data=payload)
+
+    assert mock_run.call_count == len(git_repo_mapping)
+
+
+@mock.patch('dotty.clone_repo', side_effect=fake_git_clone)
+def test_clone_git_repos(mock_run, git_repo_mapping):
+    """Ensure that Git repos are cloned properly with dirs created."""
+    payload = {'git_repos': git_repo_mapping}
+    dotty(data=payload)
+
+    assert mock_run.call_count == len(git_repo_mapping)
+
+    for directory in git_repo_mapping.values():
+        assert os.path.exists(directory)
+        assert os.path.isdir(directory)

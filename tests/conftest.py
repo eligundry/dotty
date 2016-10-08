@@ -3,6 +3,7 @@
 import json
 import os
 import random
+import sys
 from collections import OrderedDict
 from shutil import rmtree
 
@@ -10,60 +11,59 @@ import mock
 import pytest
 
 from dotty import _merge_dicts
-
-
-ASSETS_DIR = 'tests/assets'
+from tests.constants import ASSETS_DIR
+from tests.utils import transform_paths, cleanup_assets
 
 
 @pytest.fixture
 def link_mapping():
     """Returns the mappings needed for to create a link with dotty."""
     mappings = {
-        'tests/assets/src/bashrc': 'tests/assets/target/.bashrc',
-        'tests/assets/src/vimrc': 'tests/assets/target/.vimrc',
-        'tests/assets/src/zshrc': 'tests/assets/target/.zshrc',
+        'src/bashrc': 'target/.bashrc',
+        'src/vimrc': 'target/.vimrc',
+        'src/zshrc': 'target/.zshrc',
     }
 
-    yield _transform_paths(mappings)
+    yield transform_paths(mappings)
 
-    _cleanup_assets()
+    cleanup_assets()
 
 
 @pytest.fixture
 def copy_file_mapping():
     """Returns the mappings needed to copy files with dotty."""
     mappings = {
-        'tests/assets/src/init.vim': 'tests/assets/target/.init.vim',
-        'tests/assets/src/offlineimaprc': 'tests/assets/target/.offlineimaprc',
+        'src/init.vim': 'target/.init.vim',
+        'src/offlineimaprc': 'target/.offlineimaprc',
     }
 
-    yield _transform_paths(mappings)
+    yield transform_paths(mappings)
 
-    _cleanup_assets()
+    cleanup_assets()
 
 
 @pytest.fixture
 def copy_folder_mapping():
     """Returns the mappings needed to copy folders with dotty."""
     mappings = {
-        'tests/assets/src/bin': 'tests/assets/target/.bin',
-        'tests/assets/src/copy_dir': 'tests/assets/target/.copy_dir',
+        'src/bin': 'target/.bin',
+        'src/copy_dir': 'target/.copy_dir',
     }
 
-    yield _transform_paths(mappings)
+    yield transform_paths(mappings)
 
-    _cleanup_assets()
+    cleanup_assets()
 
 @pytest.fixture
 def directory_list():
     """Returns a list of directories to create."""
-    yield _transform_paths([
-        'tests/assets/target/.dir1',
-        'tests/assets/target/.dir2',
-        'tests/assets/target/.dir3',
+    yield transform_paths([
+        'target/.dir1',
+        'target/.dir2',
+        'target/.dir3',
     ])
 
-    _cleanup_assets()
+    cleanup_assets()
 
 
 @pytest.fixture
@@ -76,20 +76,18 @@ def copy_link_payload(link_mapping, copy_file_mapping, copy_folder_mapping,
         'copy': copy_file_mapping,
     }
 
-    _cleanup_assets()
+    cleanup_assets()
 
 
 @pytest.fixture
 def git_repo_mapping():
     """Returns a mapping of Git repos to clone."""
-    yield _transform_paths({
-        'https://github.com/vibhavp/dotty.git': 'tests/assets/target/dotty',
-        'https://github.com/robbyrussell/oh-my-zsh.git': (
-            'tests/assets/target/omz'
-        ),
+    yield transform_paths({
+        'https://github.com/vibhavp/dotty.git': 'target/dotty',
+        'https://github.com/robbyrussell/oh-my-zsh.git': 'target/omz',
     })
 
-    _cleanup_assets()
+    cleanup_assets()
 
 
 @pytest.fixture
@@ -159,7 +157,7 @@ def assets(link_mapping, copy_file_mapping, copy_folder_mapping):
 
     yield {'pytest': 'is silly about yield'}
 
-    _cleanup_assets()
+    cleanup_assets()
 
 
 @pytest.fixture
@@ -181,7 +179,7 @@ def full_mapping(link_mapping, copy_file_mapping, directory_list,
 def dotty_json_file(full_mapping):
     """Creates a dotty test JSON file in the asserts dir."""
     # Create the folder
-    folder_path = _transform_paths(os.path.join(ASSETS_DIR, 'src'))
+    folder_path = transform_paths(os.path.join(ASSETS_DIR, 'src'))
     os.makedirs(folder_path)
 
     # Write the JSON file
@@ -192,26 +190,4 @@ def dotty_json_file(full_mapping):
 
     yield path
 
-    _cleanup_assets()
-
-
-def _transform_paths(mappings):
-    """Transforms the values in a provided mapping to a full path relative to
-    the current directory.
-    """
-    if isinstance(mappings, dict):
-        for key, value in mappings.items():
-            mappings[key] = os.path.abspath(value)
-    elif isinstance(mappings, (list, tuple)):
-        for idx, value in enumerate(mappings):
-            mappings[idx] = os.path.abspath(value)
-    else:
-        return os.path.abspath(mappings)
-
-    return mappings
-
-
-def _cleanup_assets():
-    """Deletes the assets created by the tests."""
-    if os.path.exists(ASSETS_DIR):
-        rmtree(ASSETS_DIR)
+    cleanup_assets()

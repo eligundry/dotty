@@ -6,7 +6,7 @@ from collections import OrderedDict
 import mock
 import pytest
 
-from dotty import ask_user, dotty, parse_args, program_exists, run_command
+from dotty import ask_user, dotty, parse_args, program_exists, run_command, PY2
 from tests.conftest import ASSETS_DIR
 from tests.utils import noop, fake_git_clone, get_mtimes
 
@@ -169,7 +169,8 @@ def test_parse_args(mock_chdir, dotty_json_file, full_mapping):
 def test_program_exists(use_shutil, program, passing):
     """Ensure that program_exists works as expected."""
     if not use_shutil:
-        patcher = mock.patch('dotty.shutil.which', side_effect=AttributeError)
+        patcher = mock.patch('dotty.shutil.which', side_effect=AttributeError,
+                             create=PY2)
         patcher.start()
 
     assert program_exists(program) is passing

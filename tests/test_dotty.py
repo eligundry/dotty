@@ -23,6 +23,8 @@ def test_link_files(mock_ask, assets, link_mapping):
         assert os.path.islink(target)
         assert os.path.realpath(target) == os.path.abspath(src)
 
+    assert mock_ask.call_count is not None
+
 
 @mock.patch('dotty.ask_user', return_value=True)
 def test_copy_files(mock_ask, assets, copy_mapping):
@@ -33,6 +35,8 @@ def test_copy_files(mock_ask, assets, copy_mapping):
     for target in copy_mapping.keys():
         assert os.path.isfile(target)
         assert not os.path.islink(target)
+
+    assert mock_ask.call_count is not None
 
 
 @mock.patch('dotty.run_command', side_effect=noop)
@@ -46,11 +50,11 @@ def test_run_command(mock_run, command_list):
 
 @mock.patch('dotty.program_exists', return_value=True)
 @mock.patch('dotty.run_command', side_effect=noop)
-def test_install_packages(mock_exists, mock_run, request, package_list):
+def test_install_packages(mock_run, mock_exists, package_list):
     """Ensure that packages are installed properly."""
-    packages, manager = request.param
+    packages, manager = package_list
     payload = {manager: packages}
     dotty(data=payload)
 
-    assert mock_exists.call_count == 1
-    assert mock_run.call_count == len(package_list)
+    assert mock_exists.call_count == 3
+    assert mock_run.call_count == 1

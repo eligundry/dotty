@@ -69,7 +69,7 @@ def package_list(request):
     os_platform = request.param['platform']
     package_manager = request.param['package_manager']
 
-    patch = mock.object.patch(platform, 'system', os_platform)
+    patch = mock.patch('platform.system', return_value=os_platform)
     patch.start()
 
     yield (packages, package_manager)

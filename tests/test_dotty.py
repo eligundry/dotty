@@ -8,17 +8,7 @@ import pytest
 
 from dotty import ask_user, dotty, parse_args, run_command
 from tests.conftest import ASSETS_DIR
-
-
-def noop(*args, **kwargs):
-    """A function that does nothing that can be used by Mock to prevent certain
-    commands from running.
-    """
-
-
-def fake_git_clone(_, dest):
-    """A mock for Git clone that will create an empty directory."""
-    os.makedirs(dest)
+from tests.utils import noop, fake_git_clone, get_mtimes
 
 
 @mock.patch('dotty.ask_user', return_value=True)
@@ -58,6 +48,31 @@ def test_create_directories(directory_list):
         assert os.path.isdir(directory)
 
 
+@pytest.mark.xfail(reason="Symlinking is acting weird")
+@pytest.mark.parametrize('replace', (True, False))
+def test_replace_items(replace, assets, copy_link_payload):
+    """Ensure items can be replaced if needed."""
+    patcher = mock.patch('dotty.ask_user', return_value=replace)
+    patcher.start()
+
+    # Create things
+    dotty(data=copy_link_payload)
+    og_times = get_mtimes(os.path.join(ASSETS_DIR, 'target'))
+
+    # Replace everything
+    dotty(data=copy_link_payload, replace=replace)
+    new_times = get_mtimes(os.path.join(ASSETS_DIR, 'target'))
+
+    try:
+        for path in new_times.keys():
+            assert (new_times[path] != og_times[path]) == replace
+    finally:
+        # Always clean up your patches
+        patcher.stop()
+
+    assert assets
+
+
 @mock.patch('dotty.run_command', side_effect=noop)
 def test_run_command(mock_run, command_list):
     """Ensure that commands are run properly."""
@@ -79,26 +94,25 @@ def test_install_packages(mock_run, mock_exists, package_list):
     assert mock_run.call_count == 1
 
 
-@mock.patch('dotty.run_command', side_effect=noop)
-def test_clone_git_repos_mock(mock_run, git_repo_mapping):
-    """Ensure that Git repos are cloned properly with no dirs created."""
-    payload = {'git_repos': git_repo_mapping}
-    dotty(data=payload)
-
-    assert mock_run.call_count == len(git_repo_mapping)
-
-
-@mock.patch('dotty.clone_repo', side_effect=fake_git_clone)
-def test_clone_git_repos(mock_run, git_repo_mapping):
+@pytest.mark.parametrize('create_dirs', (True, False))
+def test_clone_git_repos(create_dirs, git_repo_mapping):
     """Ensure that Git repos are cloned properly with dirs created."""
+    if create_dirs:
+        patcher = mock.patch('dotty.clone_repo', side_effect=fake_git_clone)
+    else:
+        patcher = mock.patch('dotty.run_command', side_effect=noop)
+
+    patcher.start()
+
     payload = {'git_repos': git_repo_mapping}
     dotty(data=payload)
 
-    assert mock_run.call_count == len(git_repo_mapping)
+    if create_dirs:
+        for directory in git_repo_mapping.values():
+            assert os.path.exists(directory)
+            assert os.path.isdir(directory)
 
-    for directory in git_repo_mapping.values():
-        assert os.path.exists(directory)
-        assert os.path.isdir(directory)
+    patcher.stop()
 
 
 @pytest.mark.parametrize('test_input,expected', (

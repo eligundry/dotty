@@ -50,9 +50,12 @@ def ask_user(prompt):
         return ask_user(prompt)
 
 
-def create_directory(path):
+def create_directory(path, replace):
     """Creates a directory in the provided path."""
     exp = os.path.expanduser(path)
+
+    if os.path.isdir(path) and replace:
+        shutil.rmtree(path)
 
     if not os.path.isdir(exp):
         print(exp + " does not exist, creating.")
@@ -65,7 +68,7 @@ def create_symlink(src, dest, replace):
     src = os.path.abspath(src)
 
     if os.path.exists(dest):
-        if os.path.islink(dest) and os.readlink(dest) == src:
+        if os.path.islink(dest) and os.readlink(dest) == src and not replace:
             print("Skipping existing {0} -> {1}".format(dest, src))
             return
         elif replace or ask_user(dest + " exists, delete it?"):
@@ -81,13 +84,13 @@ def create_symlink(src, dest, replace):
     os.symlink(src, dest)
 
 
-def copy_path(src, dest):
+def copy_path(src, dest, replace):
     """Copies a file or a folder into the provided destination."""
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
 
     if os.path.exists(dest):
-        if ask_user(dest + " exists, delete it?"):
+        if replace or ask_user(dest + " exists, delete it?"):
             if os.path.isfile(dest):
                 os.remove(dest)
             else:
@@ -232,7 +235,7 @@ def dotty(data={}, replace=False):
     brew = js.get("brew", [])
 
     for path in directories:
-        create_directory(path)
+        create_directory(path, replace)
 
     for repo, path in git_repos.items():
         clone_repo(repo, path)
@@ -241,7 +244,7 @@ def dotty(data={}, replace=False):
         create_symlink(src, dest, replace)
 
     for src, dest in copy.items():
-        copy_path(src, dest)
+        copy_path(src, dest, replace)
 
     for command in commands:
         run_command(command)

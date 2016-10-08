@@ -9,6 +9,8 @@ from shutil import rmtree
 import mock
 import pytest
 
+from dotty import _merge_dicts
+
 
 ASSETS_DIR = 'tests/assets'
 
@@ -52,7 +54,6 @@ def copy_folder_mapping():
 
     _cleanup_assets()
 
-
 @pytest.fixture
 def directory_list():
     """Returns a list of directories to create."""
@@ -61,6 +62,19 @@ def directory_list():
         'tests/assets/target/.dir2',
         'tests/assets/target/.dir3',
     ])
+
+    _cleanup_assets()
+
+
+@pytest.fixture
+def copy_link_payload(link_mapping, copy_file_mapping, copy_folder_mapping,
+                      directory_list):
+    yield {
+        'directories': directory_list,
+        'link': link_mapping,
+        # 'copy': _merge_dicts(copy_file_mapping, copy_folder_mapping),
+        'copy': copy_file_mapping,
+    }
 
     _cleanup_assets()
 
@@ -125,13 +139,18 @@ def package_list(request):
 
 
 @pytest.fixture
-def assets(link_mapping, copy_file_mapping):
+def assets(link_mapping, copy_file_mapping, copy_folder_mapping):
     """Fixture that will create the tests assets and delete them when finished.
     """
     for folder in ('src', 'target'):
         folder = os.path.join(ASSETS_DIR, folder)
         if not os.path.exists(folder):
             os.makedirs(folder)
+
+    # for folder in copy_folder_mapping.keys():
+    #     folder = os.path.join(ASSETS_DIR, folder)
+    #     if not os.path.exists(folder):
+    #         os.makedirs(folder)
 
     for mapping in (link_mapping, copy_file_mapping):
         for test_file in mapping.keys():
@@ -145,12 +164,13 @@ def assets(link_mapping, copy_file_mapping):
 
 @pytest.fixture
 def full_mapping(link_mapping, copy_file_mapping, directory_list,
-                 git_repo_mapping, command_list, package_list):
+                 git_repo_mapping, command_list, package_list,
+                 copy_folder_mapping):
     """Creates full dotty mapping in an OrderedDict."""
     return OrderedDict((
         ('directories', directory_list),
         ('link', link_mapping),
-        ('copy', copy_file_mapping),
+        ('copy', _merge_dicts(copy_file_mapping, copy_folder_mapping)),
         ('commands', command_list),
         ('git_repos', git_repo_mapping),
         (package_list[1], package_list[0])

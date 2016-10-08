@@ -1,24 +1,29 @@
 """Distribution script for dotty."""
 
-from distutils.core import setup
+from setuptools import setup, find_packages
 
-tests_require = ['pytest', 'pytest-cov', 'pytest-mock']
-test_runner = ['pytest-runner']
+
+TESTS_REQUIRE = (
+    'mock',
+    'pytest',
+    'pytest-cov',
+    'pytest-mock',
+)
+TEST_RUNNER = ['pytest-runner']
 
 
 setup(
     name='dotty',
-    version='0.1.0',
-    py_modules=['dotty'],
-    packages=[],
+    version='0.2.0',
+    packages=find_packages(),
     description="Small library for managing configuration files.",
     author="Vibhav Pant",
     author_email="vibhavp@gmail.com",
     url="https://github.com/vibhavp/dotty",
-    scripts='dotty',
-    setup_requires=test_runner,
+    install_requires=(),
     extras_require={
-        'tests': tests_require,
+        'tests': TESTS_REQUIRE,
     },
-    tests_require=tests_require,
+    setup_requires=TEST_RUNNER,
+    tests_require=TESTS_REQUIRE,
 )

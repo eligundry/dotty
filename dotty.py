@@ -21,17 +21,24 @@ repo.
 from __future__ import print_function
 
 import argparse
-import itertools
 import json
 import os
 import platform
 import shutil
+import subprocess
+import sys
+from collections import OrderedDict
 from distutils.util import strtobool
+
+PY2 = sys.version_info > (3, 0)
+
+if not PY2:
+    raw_input = input  # pylint: disable=redefined-builtin,invalid-name
 
 
 def ask_user(prompt):
     """Prompts the user for a yes or no response."""
-    user_input = input(prompt + " [Y/n] ").lower()
+    user_input = raw_input(prompt + " [Y/n] ").lower()
 
     try:
         return user_input == '' or bool(strtobool(user_input))
@@ -43,6 +50,7 @@ def ask_user(prompt):
 def create_directory(path):
     """Creates a directory in the provided path."""
     exp = os.path.expanduser(path)
+
     if not os.path.isdir(exp):
         print(exp + " does not exist, creating.")
         os.makedirs(exp)
@@ -52,6 +60,7 @@ def create_symlink(src, dest, replace):
     """Creates a symlink from the source to the destination."""
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
+
     if os.path.exists(dest):
         if os.path.islink(dest) and os.readlink(dest) == src:
             print("Skipping existing {0} -> {1}".format(dest, src))
@@ -63,7 +72,9 @@ def create_symlink(src, dest, replace):
                 shutil.rmtree(dest)
         else:
             return
+
     print("Linking {0} -> {1}".format(dest, src))
+
     os.symlink(src, dest)
 
 
@@ -71,6 +82,7 @@ def copy_path(src, dest):
     """Copies a file or a folder into the provided destination."""
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
+
     if os.path.exists(dest):
         if ask_user(dest + " exists, delete it?"):
             if os.path.isfile(dest):
@@ -79,7 +91,9 @@ def copy_path(src, dest):
                 shutil.rmtree(dest)
         else:
             return
+
     print("Copying {0} -> {1}".format(src, dest))
+
     if os.path.isfile(src):
         shutil.copy(src, dest)
     else:
@@ -97,7 +111,24 @@ def clone_repo(repo_url, dest):
 
 
 def _merge_dicts(*args):
-    return dict(itertools.chain(arg.iteritems() for arg in args))
+    res = {}
+
+    for arg in args:
+        res.update(arg)
+
+    return res
+
+
+def _program_exists(program):
+    if PY2:
+        try:
+            return bool(
+                subprocess.check_output(['which', program], shell=True)
+            )
+        except subprocess.CalledProcessError:
+            return False
+    else:
+        return bool(shutil.which(program))
 
 
 def dotty(data={}, replace=False):
@@ -156,7 +187,7 @@ def dotty(data={}, replace=False):
         parser.add_argument("-r", "--replace", action="store_true",
                             help="replace files/folders if they already exist")
         args = parser.parse_args()
-        js = json.load(open(args.config))
+        js = json.load(open(args.config), object_pairs_hook=OrderedDict)
         replace = args.replace
         os.chdir(
             os.path.expanduser(os.path.abspath(os.path.dirname(args.config)))

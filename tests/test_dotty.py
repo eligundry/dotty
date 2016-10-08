@@ -5,7 +5,7 @@ import os
 import mock
 import pytest
 
-from dotty import ask_user, dotty
+from dotty import ask_user, dotty, run_command
 
 
 def noop(*args, **kwargs):
@@ -126,3 +126,8 @@ def test_ask_user(test_input, expected):
     assert ask_user(test_input) is expected
 
     patch.stop()
+
+
+def test_raw_run_command():
+    """Ensure that run_command can echo."""
+    run_command('echo "hello"')

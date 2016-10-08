@@ -119,16 +119,16 @@ def _merge_dicts(*args):
     return res
 
 
-def _program_exists(program):
-    if PY2:
-        try:
-            return bool(
-                subprocess.check_output(['which', program], shell=True)
-            )
-        except subprocess.CalledProcessError:
-            return False
-    else:
+def program_exists(program):
+    if not PY2:
         return bool(shutil.which(program))
+
+    try:
+        return bool(
+            subprocess.check_output(['which', program], shell=True)
+        )
+    except subprocess.CalledProcessError:
+        return False
 
 
 def dotty(data={}, replace=False):
@@ -225,14 +225,14 @@ def dotty(data={}, replace=False):
     for command in commands:
         run_command(command)
 
-    if all((pacman, os_type == "Linux", shutil.which("pacman"))):
+    if all((pacman, os_type == "Linux", program_exists("pacman"))):
         run_command("sudo pacman -S {0}".format(" ".join(pacman)))
 
-    if all((apt, os_type == "Linux", shutil.which("apt-get"))):
+    if all((apt, os_type == "Linux", program_exists("apt-get"))):
         run_command("sudo apt-get update && "
                     "sudo apt-get install {0}".format(" ".join(apt)))
 
-    if all((brew, os_type == "Darwin", shutil.which("brew"))):
+    if all((brew, os_type == "Darwin", program_exists("brew"))):
         run_command("brew update && brew install {0}".format(" ".join(brew)))
 
     print("Done!")

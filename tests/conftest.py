@@ -1,8 +1,10 @@
 """Set of fixtures to be used by the tests."""
 # pylint: disable=redefined-outer-name
 import os
+import platform
 from shutil import rmtree
 
+import mock
 import pytest
 
 
@@ -29,6 +31,52 @@ def copy_mapping():
     return _transform_paths(mappings)
 
 
+@pytest.fixture
+def command_list():
+    """Returns a list of commands to be run."""
+    return [
+        "echo 'hello'",
+        "ls",
+        "sudo apt-get update",
+        "sudo apt-get upgrade",
+    ]
+
+
+@pytest.fixture(params=(
+    {
+        'package_manager': 'pacman',
+        'platform': 'Linux',
+    },
+    {
+        'package_manager': 'apt',
+        'platform': 'Linux',
+    },
+    {
+        'package_manager': 'brew',
+        'platform': 'Darwin',
+    },
+))
+def package_list(request):
+    """Returns a list of packages to install."""
+    packages = [
+        "vim",
+        "zsh",
+        "git",
+        "python",
+        "java",
+    ]
+
+    os_platform = request.param['platform']
+    package_manager = request.param['package_manager']
+
+    patch = mock.object.patch(platform, 'system', os_platform)
+    patch.start()
+
+    yield (packages, package_manager)
+
+    patch.stop()
+
+
 def _transform_paths(mappings):
     """Transforms the values in a provided mapping to a full path relative to
     the current directory.
@@ -41,6 +89,7 @@ def _transform_paths(mappings):
             mappings[idx] = os.path.abspath(value)
 
     return mappings
+
 
 @pytest.fixture
 def assets(link_mapping, copy_mapping):

@@ -7,8 +7,14 @@ import mock
 from dotty import dotty
 
 
+def noop(*args, **kwargs):
+    """A function that does nothing that can be used by Mock to prevent certain
+    commands from running.
+    """
+
+
 @mock.patch('dotty.ask_user', return_value=True)
-def test_link_files(assets, link_mapping):
+def test_link_files(mock_ask, assets, link_mapping):
     """Ensure that files link correctly."""
     payload = {'link': link_mapping}
     dotty(data=payload)
@@ -19,7 +25,7 @@ def test_link_files(assets, link_mapping):
 
 
 @mock.patch('dotty.ask_user', return_value=True)
-def test_copy_files(assets, copy_mapping):
+def test_copy_files(mock_ask, assets, copy_mapping):
     """Ensure that files are copied correctly."""
     payload = {'copy': copy_mapping}
     dotty(data=payload)
@@ -27,3 +33,24 @@ def test_copy_files(assets, copy_mapping):
     for target in copy_mapping.keys():
         assert os.path.isfile(target)
         assert not os.path.islink(target)
+
+
+@mock.patch('dotty.run_command', side_effect=noop)
+def test_run_command(mock_run, command_list):
+    """Ensure that commands are run properly."""
+    payload = {'commands': command_list}
+    dotty(data=payload)
+
+    assert mock_run.call_count == len(command_list)
+
+
+@mock.patch('dotty.program_exists', return_value=True)
+@mock.patch('dotty.run_command', side_effect=noop)
+def test_install_packages(mock_exists, mock_run, request, package_list):
+    """Ensure that packages are installed properly."""
+    packages, manager = request.param
+    payload = {manager: packages}
+    dotty(data=payload)
+
+    assert mock_exists.call_count == 1
+    assert mock_run.call_count == len(package_list)

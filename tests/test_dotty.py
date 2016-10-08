@@ -1,11 +1,13 @@
 """Unit tests to ensure that dotty is working properly."""
 
 import os
+from collections import OrderedDict
 
 import mock
 import pytest
 
-from dotty import ask_user, dotty, run_command
+from dotty import ask_user, dotty, parse_args, run_command
+from tests.conftest import ASSETS_DIR
 
 
 def noop(*args, **kwargs):
@@ -34,14 +36,14 @@ def test_link_files(mock_ask, assets, link_mapping):
 
 
 @mock.patch('dotty.ask_user', return_value=True)
-def test_copy_files(mock_ask, assets, copy_mapping):
+def test_copy_files(mock_ask, assets, copy_file_mapping):
     """Ensure that files are copied correctly."""
-    payload = {'copy': copy_mapping}
+    payload = {'copy': copy_file_mapping}
     dotty(data=payload)
 
-    for target in copy_mapping.keys():
-        assert os.path.isfile(target)
+    for target in copy_file_mapping.keys():
         assert not os.path.islink(target)
+        assert os.path.isfile(target)
 
     assert assets
     assert mock_ask.call_count is not None
@@ -131,3 +133,14 @@ def test_ask_user(test_input, expected):
 def test_raw_run_command():
     """Ensure that run_command can echo."""
     run_command('echo "hello"')
+
+
+@mock.patch('os.chdir', side_effect=noop)
+def test_parse_args(mock_chdir, dotty_json_file, full_mapping):
+    """Ensure that argument parsing works as expected."""
+    args = parse_args([dotty_json_file, '-r'])
+
+    assert mock_chdir.call_count == 1
+    assert args.replace is True
+    assert isinstance(args.config, OrderedDict)
+    assert args.config == full_mapping

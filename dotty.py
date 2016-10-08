@@ -30,7 +30,7 @@ import sys
 from collections import OrderedDict
 from distutils.util import strtobool
 
-PY2 = sys.version_info[0] > 3
+PY2 = sys.version_info[0] < 3
 
 if PY2:
     user_input = raw_input
@@ -40,7 +40,8 @@ else:
 
 def ask_user(prompt):
     """Prompts the user for a yes or no response."""
-    entered = user_input(prompt + " [Y/n] ").lower()
+    prompt = "{0} [Y/n] ".format(prompt)
+    entered = user_input(prompt).lower()
 
     try:
         return entered == '' or bool(strtobool(entered))
@@ -133,6 +134,31 @@ def program_exists(program):
         return False
 
 
+def parse_args(args):
+    """Parses the incoming CLI args for dotty."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config",
+                        help="the JSON file you want to use",
+                        type=open)
+    parser.add_argument("-r",
+                        "--replace",
+                        action="store_true",
+                        help="replace files/folders if they already exist")
+    args = parser.parse_args(args)
+
+    # Switch to the directory of the target file so all links created will be
+    # relative to it.
+    os.chdir(
+        os.path.expanduser(os.path.abspath(os.path.dirname(args.config.name)))
+    )
+
+    # Make sure the dict is ordered so the directives execute in the order they
+    # are written.
+    args.config = json.load(args.config, object_pairs_hook=OrderedDict)
+
+    return args
+
+
 def dotty(data={}, replace=False):
     """Runs the dotty linker. An example of the JSON that needs to be something
     like this:
@@ -184,16 +210,9 @@ def dotty(data={}, replace=False):
         replace (bool): Should existing symlinks and directories be replaced?
     """
     if not data:
-        parser = argparse.ArgumentParser()
-        parser.add_argument("config", help="the JSON file you want to use")
-        parser.add_argument("-r", "--replace", action="store_true",
-                            help="replace files/folders if they already exist")
-        args = parser.parse_args()
-        js = json.load(open(args.config), object_pairs_hook=OrderedDict)
+        args = parse_args(sys.argv[1:])
+        js = args.config
         replace = args.replace
-        os.chdir(
-            os.path.expanduser(os.path.abspath(os.path.dirname(args.config)))
-        )
     else:
         js = data
 

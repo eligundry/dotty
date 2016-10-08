@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""Dotty is a little python script for syncing dotfiles stored on your git
+repo.
+"""
 
 # Copyright (C) 2015 Vibhav Pant <vibhavp@gmail.com>
 # This program is free software; you can redistribute it and/or modify
@@ -15,6 +18,8 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+from __future__ import print_function
+
 import argparse
 import itertools
 import json
@@ -22,27 +27,29 @@ import os
 import platform
 import shutil
 from distutils.util import strtobool
-from sys import stderr
 
 
 def ask_user(prompt):
+    """Prompts the user for a yes or no response."""
     user_input = input(prompt + " [Y/n] ").lower()
 
     try:
         return user_input == '' or bool(strtobool(user_input))
     except ValueError:
-        print("Enter a correct choice.", file=stderr)
+        print("Enter a correct choice.")
         return ask_user(prompt)
 
 
 def create_directory(path):
+    """Creates a directory in the provided path."""
     exp = os.path.expanduser(path)
-    if (not os.path.isdir(exp)):
-        print(exp + " doesnt exist, creating.")
+    if not os.path.isdir(exp):
+        print(exp + " does not exist, creating.")
         os.makedirs(exp)
 
 
 def create_symlink(src, dest, replace):
+    """Creates a symlink from the source to the destination."""
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
     if os.path.exists(dest):
@@ -61,6 +68,7 @@ def create_symlink(src, dest, replace):
 
 
 def copy_path(src, dest):
+    """Copies a file or a folder into the provided destination."""
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
     if os.path.exists(dest):
@@ -79,7 +87,13 @@ def copy_path(src, dest):
 
 
 def run_command(command):
+    """Runs a single CLI command."""
     os.system(command)
+
+
+def clone_repo(repo_url, dest):
+    """Clones a git repo in to the provided destination."""
+    run_command("git clone {0} {1}".format(repo_url, dest))
 
 
 def _merge_dicts(*args):
@@ -109,16 +123,14 @@ def dotty(data={}, replace=False):
             "commands": [
                 "emacs -batch -Q -l ~/.emacs.d/firstrun.el"
             ],
+            // Git Repos to clone
+            "git_repos": {
+                "https://github.com/robbyrussell/oh-my-zsh.git": "~/.oh-my-zsh"
+            },
             // Install Packages with package manager if on correct system.
-            "brew": [
-                "macvim",
-            ],
-            "apt": [
-                "vim-nox",
-            ],
-            "pacman": [
-                "vim",
-            ],
+            "brew": ["macvim"],
+            "apt": ["vim-nox"],
+            "pacman": ["vim"],
             // Conditional links depending on the output of `platform.system()`
             "system": {
                 "Darwin": {
@@ -140,11 +152,9 @@ def dotty(data={}, replace=False):
     """
     if not data:
         parser = argparse.ArgumentParser()
-        parser.add_argument("config", help="the JSON file you want to use",
-                            default=data)
+        parser.add_argument("config", help="the JSON file you want to use")
         parser.add_argument("-r", "--replace", action="store_true",
-                            help="replace files/folders if they already exist",
-                            default=replace)
+                            help="replace files/folders if they already exist")
         args = parser.parse_args()
         js = json.load(open(args.config))
         replace = args.replace
@@ -163,6 +173,8 @@ def dotty(data={}, replace=False):
     links = _merge_dicts(js.get("link", {}), platform_js.get("link", {}))
     copy = _merge_dicts(js.get("copy", {}), platform_js.get("copy", {}))
     commands = js.get("commands", []) + platform_js.get("commands", [])
+    git_repos = _merge_dicts(js.get('git_repos', {}),
+                             platform_js.get('git_repos', {}))
     pacman = js.get("pacman", [])
     apt = js.get("apt", [])
     brew = js.get("brew", [])
@@ -170,23 +182,26 @@ def dotty(data={}, replace=False):
     for path in directories:
         create_directory(path)
 
-    for src in links:
-        create_symlink(src, links[src], replace)
+    for repo, path in git_repos.items():
+        clone_repo(repo, path)
 
-    for src in copy:
-        copy_path(src, copy[src])
+    for src, dest in links.items():
+        create_symlink(src, dest, replace)
+
+    for src, dest in copy.items():
+        copy_path(src, dest)
 
     for command in commands:
         run_command(command)
 
-    if all((pacman, os_type == 'Linux', shutil.which('pacman'))):
+    if all((pacman, os_type == "Linux", shutil.which("pacman"))):
         run_command("sudo pacman -S {0}".format(" ".join(pacman)))
 
-    if all((apt, os_type == 'Linux', shutil.which('apt-get'))):
+    if all((apt, os_type == "Linux", shutil.which("apt-get"))):
         run_command("sudo apt-get update && "
-                    "sudo apt-get install {0}".format(" " .join(apt)))
+                    "sudo apt-get install {0}".format(" ".join(apt)))
 
-    if all((brew, os_type == 'Darwin', shutil.which('brew'))):
+    if all((brew, os_type == "Darwin", shutil.which("brew"))):
         run_command("brew update && brew install {0}".format(" ".join(brew)))
 
     print("Done!")

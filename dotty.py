@@ -30,18 +30,20 @@ import sys
 from collections import OrderedDict
 from distutils.util import strtobool
 
-PY2 = sys.version_info > (3, 0)
+PY2 = sys.version_info[0] > 3
 
-if not PY2:
-    raw_input = input  # pylint: disable=redefined-builtin,invalid-name
+if PY2:
+    user_input = raw_input
+else:
+    user_input = input
 
 
 def ask_user(prompt):
     """Prompts the user for a yes or no response."""
-    user_input = raw_input(prompt + " [Y/n] ").lower()
+    entered = user_input(prompt + " [Y/n] ").lower()
 
     try:
-        return user_input == '' or bool(strtobool(user_input))
+        return entered == '' or bool(strtobool(entered))
     except ValueError:
         print("Enter a correct choice.")
         return ask_user(prompt)
@@ -120,7 +122,7 @@ def _merge_dicts(*args):
 
 
 def program_exists(program):
-    if not hasattr(shutil, 'which'):
+    if hasattr(shutil, 'which'):
         return bool(shutil.which(program))
 
     try:

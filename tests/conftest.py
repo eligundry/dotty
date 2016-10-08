@@ -48,12 +48,12 @@ def directory_list():
 @pytest.fixture
 def git_repo_mapping():
     """Returns a mapping of Git repos to clone."""
-    return {
+    return _transform_paths({
         'https://github.com/vibhavp/dotty.git': 'tests/assets/target/dotty',
         'https://github.com/robbyrussell/oh-my-zsh.git': (
             'tests/assets/target/omz'
         ),
-    }
+    })
 
 
 @pytest.fixture

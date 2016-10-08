@@ -3,8 +3,9 @@
 import os
 
 import mock
+import pytest
 
-from dotty import dotty
+from dotty import ask_user, dotty
 
 
 def noop(*args, **kwargs):
@@ -96,3 +97,32 @@ def test_clone_git_repos(mock_run, git_repo_mapping):
     for directory in git_repo_mapping.values():
         assert os.path.exists(directory)
         assert os.path.isdir(directory)
+
+
+@pytest.mark.parametrize('test_input,expected', (
+    ('', True),
+    ('y', True),
+    ('Y', True),
+    ('t', True),
+    ('T', True),
+    ('True', True),
+    ('true', True),
+    ('1', True),
+    ('on', True),
+    ('n', False),
+    ('N', False),
+    ('f', False),
+    ('F', False),
+    ('false', False),
+    ('False', False),
+    ('off', False),
+    ('0', False),
+))
+def test_ask_user(test_input, expected):
+    """Ensure that ask_user works correctly with strtobool."""
+    patch = mock.patch('dotty.user_input', return_value=test_input)
+    patch.start()
+
+    assert ask_user(test_input) is expected
+
+    patch.stop()

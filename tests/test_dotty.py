@@ -39,6 +39,15 @@ def test_copy_files(mock_ask, assets, copy_mapping):
     assert mock_ask.call_count is not None
 
 
+def test_create_directories(directory_list):
+    """Ensure that directories are created properly."""
+    payload = {'directories': directory_list}
+    dotty(data=payload)
+
+    for directory in directory_list:
+        assert os.path.isdir(directory)
+
+
 @mock.patch('dotty.run_command', side_effect=noop)
 def test_run_command(mock_run, command_list):
     """Ensure that commands are run properly."""

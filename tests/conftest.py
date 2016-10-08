@@ -32,6 +32,16 @@ def copy_mapping():
 
 
 @pytest.fixture
+def directory_list():
+    """Returns a list of directories to create."""
+    return _transform_paths([
+        'tests/assets/target/dir1',
+        'tests/assets/target/dir2',
+        'tests/assets/target/dir3',
+    ])
+
+
+@pytest.fixture
 def command_list():
     """Returns a list of commands to be run."""
     return [

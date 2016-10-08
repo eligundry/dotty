@@ -16,19 +16,23 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import argparse
+import itertools
 import json
 import os
+import platform
 import shutil
 from distutils.util import strtobool
 from sys import stderr
 
 
 def ask_user(prompt):
-    while True:
-        try:
-            return bool(strtobool(input(prompt + " ").lower()))
-        except ValueError:
-            print("Enter a correct choice.", file=stderr)
+    user_input = input(prompt + " [Y/n] ").lower()
+
+    try:
+        return user_input == '' or bool(strtobool(user_input))
+    except ValueError:
+        print("Enter a correct choice.", file=stderr)
+        return ask_user(prompt)
 
 
 def create_directory(path):
@@ -45,7 +49,7 @@ def create_symlink(src, dest, replace):
         if os.path.islink(dest) and os.readlink(dest) == src:
             print("Skipping existing {0} -> {1}".format(dest, src))
             return
-        elif replace or ask_user(dest + " exists, delete it? [Y/n]"):
+        elif replace or ask_user(dest + " exists, delete it?"):
             if os.path.isfile(dest):
                 os.remove(dest)
             else:
@@ -60,7 +64,7 @@ def copy_path(src, dest):
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
     if os.path.exists(dest):
-        if ask_user(dest + " exists, delete it? [Y/n]"):
+        if ask_user(dest + " exists, delete it?"):
             if os.path.isfile(dest):
                 os.remove(dest)
             else:
@@ -78,25 +82,56 @@ def run_command(command):
     os.system(command)
 
 
+def _merge_dicts(*args):
+    return dict(itertools.chain(arg.iteritems() for arg in args))
+
+
 def dotty(data={}, replace=False):
     """Runs the dotty linker. An example of the JSON that needs to be something
     like this:
 
     .. code-block:: json
         {
+            // Create Directories
             "directories": ["~/emacs.d"],
-
+            // Link Files
             "link": {
                 "source": "dest",
                 "zshrc": "~/.zshrc"
                 // Directories can be linked too
                 "emacs/lisp/": "~/.emacs.d/lisp"
             },
-            // files you want to be copied
+            // Copy Files & Directories
             "copy": {
                 "offlineimaprc": "~/.offlineimaprc"
             },
-            "commands": ["emacs -batch -Q -l ~/.emacs.d/firstrun.el"]
+            // Run Commands
+            "commands": [
+                "emacs -batch -Q -l ~/.emacs.d/firstrun.el"
+            ],
+            // Install Packages with package manager if on correct system.
+            "brew": [
+                "macvim",
+            ],
+            "apt": [
+                "vim-nox",
+            ],
+            "pacman": [
+                "vim",
+            ],
+            // Conditional links depending on the output of `platform.system()`
+            "system": {
+                "Darwin": {
+                    "link": {
+                        "iterm-2.0-profiles.json": "~/.iterm-2.0-profiles.json"
+                    }
+                },
+                "Linux": {
+                    "link": {
+                        "config/terminator.conf": "~/.config/terminator.conf"
+                    }
+                }
+            }
         }
 
     Args:
@@ -119,10 +154,15 @@ def dotty(data={}, replace=False):
     else:
         js = data
 
-    directories = js.get("directories", [])
-    links = js.get("link", {})
-    copy = js.get("copy", {})
-    commands = js.get("commands", [])
+    # Check the OS
+    os_type = platform.system()
+    platform_js = js.get(os_type, {})
+
+    directories = (js.get("directories", []) +
+                   platform_js.get("directories", []))
+    links = _merge_dicts(js.get("link", {}), platform_js.get("link", {}))
+    copy = _merge_dicts(js.get("copy", {}), platform_js.get("copy", {}))
+    commands = js.get("commands", []) + platform_js.get("commands", [])
     pacman = js.get("pacman", [])
     apt = js.get("apt", [])
     brew = js.get("brew", [])
@@ -139,14 +179,14 @@ def dotty(data={}, replace=False):
     for command in commands:
         run_command(command)
 
-    if pacman:
+    if all((pacman, os_type == 'Linux', shutil.which('pacman'))):
         run_command("sudo pacman -S {0}".format(" ".join(pacman)))
 
-    if apt:
+    if all((apt, os_type == 'Linux', shutil.which('apt-get'))):
         run_command("sudo apt-get update && "
                     "sudo apt-get install {0}".format(" " .join(apt)))
 
-    if brew:
+    if all((brew, os_type == 'Darwin', shutil.which('brew'))):
         run_command("brew update && brew install {0}".format(" ".join(brew)))
 
     print("Done!")

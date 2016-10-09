@@ -7,9 +7,7 @@ from tests.constants import ASSETS_DIR
 
 
 def noop(*args, **kwargs):
-    """A function that does nothing that can be used by Mock to prevent certain
-    commands from running.
-    """
+    """Function that does nothing that can be used by Mock."""
 
 
 def fake_git_clone(_, dest):
@@ -18,8 +16,7 @@ def fake_git_clone(_, dest):
 
 
 def get_mtimes(path):
-    """Gets all the mtimes from all the files and directories for a given path.
-    """
+    """Get all the mtimes from all the files in a given path."""
     mtimes = {}
 
     for subdir, dirs, files in os.walk(path):
@@ -35,13 +32,12 @@ def get_mtimes(path):
 
 
 def asset_join(path):
+    """Return a path that is suitable for the tests to use."""
     return os.path.abspath(os.path.join(ASSETS_DIR, path))
 
 
 def transform_paths(mappings):
-    """Transforms the values in a provided mapping to a full path relative to
-    the current directory.
-    """
+    """Transform short test paths to full paths usable in the tests."""
     if isinstance(mappings, dict):
         path_itr = mappings.items()
     elif isinstance(mappings, (list, tuple)):
@@ -59,6 +55,6 @@ def transform_paths(mappings):
 
 
 def cleanup_assets():
-    """Deletes the assets created by the tests."""
+    """Delete the assets created by the tests."""
     if os.path.exists(ASSETS_DIR):
         rmtree(ASSETS_DIR)

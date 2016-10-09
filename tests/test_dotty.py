@@ -3,12 +3,12 @@
 import os
 from collections import OrderedDict
 
+from dotty import PY2, ask_user, dotty, parse_args, program_exists, run_command
 import mock
 import pytest
 
-from dotty import ask_user, dotty, parse_args, program_exists, run_command, PY2
 from tests.conftest import ASSETS_DIR
-from tests.utils import noop, fake_git_clone, get_mtimes
+from tests.utils import fake_git_clone, get_mtimes, noop
 
 
 @mock.patch('dotty.ask_user', return_value=True)
@@ -64,7 +64,7 @@ def test_replace_items(replace, assets, copy_link_payload):
     new_times = get_mtimes(os.path.join(ASSETS_DIR, 'target'))
 
     try:
-        for path in new_times.keys():
+        for path in new_times:
             assert (new_times[path] != og_times[path]) == replace
     finally:
         # Always clean up your patches

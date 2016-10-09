@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""Dotty is a little python script for syncing dotfiles stored on your git
-repo.
-"""
+"""Dotty is a little python script for syncing dotfiles from a Git repo."""
 
 # Copyright (C) 2015 Vibhav Pant <vibhavp@gmail.com>
 # This program is free software; you can redistribute it and/or modify
@@ -39,7 +37,7 @@ else:
 
 
 def ask_user(prompt):
-    """Prompts the user for a yes or no response."""
+    """Prompt the user for a yes or no response."""
     prompt = "{0} [Y/n] ".format(prompt)
     entered = user_input(prompt).lower()
 
@@ -51,7 +49,7 @@ def ask_user(prompt):
 
 
 def create_directory(path, replace):
-    """Creates a directory in the provided path."""
+    """Create a directory in the provided path."""
     exp = os.path.expanduser(path)
 
     if os.path.isdir(path) and replace:
@@ -63,7 +61,7 @@ def create_directory(path, replace):
 
 
 def create_symlink(src, dest, replace):
-    """Creates a symlink from the source to the destination."""
+    """Create a symlink from the source to the destination."""
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
 
@@ -85,7 +83,7 @@ def create_symlink(src, dest, replace):
 
 
 def copy_path(src, dest, replace):
-    """Copies a file or a folder into the provided destination."""
+    """Copy a file or a folder into the provided destination."""
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
 
@@ -107,16 +105,17 @@ def copy_path(src, dest, replace):
 
 
 def run_command(command):
-    """Runs a single CLI command."""
+    """Run a single CLI command."""
     os.system(command)
 
 
 def clone_repo(repo_url, dest):
-    """Clones a git repo in to the provided destination."""
+    """Clonesa git repo in to the provided destination."""
     run_command("git clone {0} {1}".format(repo_url, dest))
 
 
 def _merge_dicts(*args):
+    """Merge an arbitrary amount of dictionaries together."""
     res = {}
 
     for arg in args:
@@ -126,7 +125,7 @@ def _merge_dicts(*args):
 
 
 def program_exists(program):
-    """Checks if a CLI program exists."""
+    """Check if a CLI program exists."""
     try:
         return bool(shutil.which(program))
     except AttributeError:
@@ -141,7 +140,7 @@ def program_exists(program):
 
 
 def parse_args(args):
-    """Parses the incoming CLI args for dotty."""
+    """Parse the incoming CLI args for dotty."""
     parser = argparse.ArgumentParser()
     parser.add_argument("config",
                         help="the JSON file you want to use",
@@ -166,8 +165,10 @@ def parse_args(args):
 
 
 def dotty(data={}, replace=False):
-    """Runs the dotty linker. An example of the JSON that needs to be something
-    like this:
+    """Run the dotty linker.
+
+    An example of the JSON needs to look for this to function properly is like
+    so:
 
     .. code-block:: json
         {

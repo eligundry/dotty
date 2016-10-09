@@ -4,7 +4,7 @@ import json
 import os
 from collections import OrderedDict
 
-from dotty import _merge_dicts
+from dotty import merge_dicts
 import mock
 import pytest
 
@@ -71,7 +71,7 @@ def copy_link_payload(link_mapping, copy_file_mapping, copy_folder_mapping,
     yield {
         'directories': directory_list,
         'link': link_mapping,
-        # 'copy': _merge_dicts(copy_file_mapping, copy_folder_mapping),
+        # 'copy': merge_dicts(copy_file_mapping, copy_folder_mapping),
         'copy': copy_file_mapping,
     }
 
@@ -106,7 +106,7 @@ def command_list():
         'platform': 'Linux',
     },
     {
-        'package_manager': 'apt',
+        'package_manager': 'apt-get',
         'platform': 'Linux',
     },
     {
@@ -127,7 +127,7 @@ def package_list(request):
     os_platform = request.param['platform']
     package_manager = request.param['package_manager']
 
-    patch = mock.patch('platform.system', return_value=os_platform)
+    patch = mock.patch('dotty.PLATFORM', os_platform)
     patch.start()
 
     yield (packages, package_manager)
@@ -166,7 +166,7 @@ def full_mapping(link_mapping, copy_file_mapping, directory_list,
     return OrderedDict((
         ('directories', directory_list),
         ('link', link_mapping),
-        ('copy', _merge_dicts(copy_file_mapping, copy_folder_mapping)),
+        ('copy', merge_dicts(copy_file_mapping, copy_folder_mapping)),
         ('commands', command_list),
         ('git_repos', git_repo_mapping),
         (package_list[1], package_list[0])

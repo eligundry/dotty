@@ -11,44 +11,52 @@ from tests.conftest import ASSETS_DIR
 from tests.utils import fake_git_clone, get_mtimes, noop
 
 
+def test_data_must_be_present():
+    """Ensure that data must be provided to dotty."""
+    with pytest.raises(RuntimeError):
+        dotty(cli=True)
+
+
+@pytest.mark.parametrize('enabled', (True, False))
 @mock.patch('dotty.ask_user', return_value=True)
-def test_link_files(mock_ask, assets, link_mapping):
+def test_link_files(mock_ask, assets, link_mapping, enabled):
     """Ensure that files link correctly."""
     payload = {'link': link_mapping}
-    dotty(data=payload)
+    dotty(json_config=payload, link=enabled)
 
     for src, target in link_mapping.items():
-        assert os.path.islink(target)
-        assert os.path.realpath(target) == os.path.abspath(src)
+        assert os.path.islink(target) is enabled
+        assert (os.path.realpath(target) == os.path.abspath(src)) is enabled
 
     assert assets
     assert mock_ask.call_count is not None
 
 
+@pytest.mark.parametrize('enabled', (True, False))
 @mock.patch('dotty.ask_user', return_value=True)
-def test_copy_files(mock_ask, assets, copy_file_mapping):
+def test_copy_files(mock_ask, assets, copy_file_mapping, enabled):
     """Ensure that files are copied correctly."""
     payload = {'copy': copy_file_mapping}
-    dotty(data=payload)
+    dotty(json_config=payload, copy=enabled)
 
     for target in copy_file_mapping.keys():
         assert not os.path.islink(target)
-        assert os.path.isfile(target)
+        assert os.path.isfile(target) is enabled
 
     assert assets
     assert mock_ask.call_count is not None
 
 
-def test_create_directories(directory_list):
+@pytest.mark.parametrize('enabled', (True, False))
+def test_create_directories(directory_list, enabled):
     """Ensure that directories are created properly."""
     payload = {'directories': directory_list}
-    dotty(data=payload)
+    dotty(json_config=payload, directories=enabled)
 
     for directory in directory_list:
-        assert os.path.isdir(directory)
+        assert os.path.isdir(directory) is enabled
 
 
-@pytest.mark.xfail(reason="Symlinking is acting weird")
 @pytest.mark.parametrize('replace', (True, False))
 def test_replace_items(replace, assets, copy_link_payload):
     """Ensure items can be replaced if needed."""
@@ -56,11 +64,11 @@ def test_replace_items(replace, assets, copy_link_payload):
     patcher.start()
 
     # Create things
-    dotty(data=copy_link_payload)
+    dotty(json_config=copy_link_payload, firstrun=True)
     og_times = get_mtimes(os.path.join(ASSETS_DIR, 'target'))
 
     # Replace everything
-    dotty(data=copy_link_payload, replace=replace)
+    dotty(json_config=copy_link_payload, replace=replace, firstrun=True)
     new_times = get_mtimes(os.path.join(ASSETS_DIR, 'target'))
 
     try:
@@ -73,29 +81,32 @@ def test_replace_items(replace, assets, copy_link_payload):
     assert assets
 
 
+@pytest.mark.parametrize('enabled', (True, False))
 @mock.patch('dotty.run_command', side_effect=noop)
-def test_run_command(mock_run, command_list):
+def test_run_command(mock_run, command_list, enabled):
     """Ensure that commands are run properly."""
     payload = {'commands': command_list}
-    dotty(data=payload)
+    dotty(json_config=payload, commands=enabled)
 
-    assert mock_run.call_count == len(command_list)
+    assert (mock_run.call_count == len(command_list)) is enabled
 
 
+@pytest.mark.parametrize('enabled', (True, False))
 @mock.patch('dotty.program_exists', return_value=True)
 @mock.patch('dotty.run_command', side_effect=noop)
-def test_install_packages(mock_run, mock_exists, package_list):
+def test_install_packages(mock_run, mock_exists, package_list, enabled):
     """Ensure that packages are installed properly."""
     packages, manager = package_list
     payload = {manager: packages}
-    dotty(data=payload)
+    dotty(json_config=payload, install_packages=enabled)
 
-    assert mock_exists.call_count == 3
-    assert mock_run.call_count == 1
+    assert (mock_exists.call_count == 1) is enabled
+    assert (mock_run.call_count == 1) is enabled
 
 
+@pytest.mark.parametrize('enabled', (True, False))
 @pytest.mark.parametrize('create_dirs', (True, False))
-def test_clone_git_repos(create_dirs, git_repo_mapping):
+def test_clone_git_repos(create_dirs, git_repo_mapping, enabled):
     """Ensure that Git repos are cloned properly with dirs created."""
     if create_dirs:
         patcher = mock.patch('dotty.clone_repo', side_effect=fake_git_clone)
@@ -105,12 +116,12 @@ def test_clone_git_repos(create_dirs, git_repo_mapping):
     patcher.start()
 
     payload = {'git_repos': git_repo_mapping}
-    dotty(data=payload)
+    dotty(json_config=payload, git_repos=enabled)
 
     if create_dirs:
         for directory in git_repo_mapping.values():
-            assert os.path.exists(directory)
-            assert os.path.isdir(directory)
+            assert os.path.exists(directory) is enabled
+            assert os.path.isdir(directory) is enabled
 
     patcher.stop()
 
@@ -156,8 +167,8 @@ def test_parse_args(mock_chdir, dotty_json_file, full_mapping):
 
     assert mock_chdir.call_count == 1
     assert args.replace is True
-    assert isinstance(args.config, OrderedDict)
-    assert args.config == full_mapping
+    assert isinstance(args.json_config, OrderedDict)
+    assert args.json_config == full_mapping
 
 
 @pytest.mark.parametrize('use_shutil,program,passing', (

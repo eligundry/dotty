@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import argparse
 import json
+import inspect
 import os
 import platform
 import shutil
@@ -29,11 +30,20 @@ from collections import OrderedDict
 from distutils.util import strtobool
 
 PY2 = sys.version_info[0] < 3
+PLATFORM = platform.system()
+SILENT = False
+PACKAGE_MANAGERS = (
+    'apt-get',
+    'brew',
+    'pacman',
+)
 
 if PY2:
     user_input = raw_input  # flake8: F821
+    signature = inspect.getargspec
 else:
     user_input = input
+    signature = inspect.signature
 
 
 def ask_user(prompt):
@@ -66,14 +76,13 @@ def create_symlink(src, dest, replace):
     src = os.path.abspath(src)
 
     if os.path.exists(dest):
-        if os.path.islink(dest) and os.readlink(dest) == src and not replace:
+        is_same = (os.path.islink(dest) and os.readlink(dest) == src)
+
+        if is_same and not replace:
             print("Skipping existing {0} -> {1}".format(dest, src))
             return
         elif replace or ask_user(dest + " exists, delete it?"):
-            if os.path.isfile(dest):
-                os.remove(dest)
-            else:
-                shutil.rmtree(dest)
+            remove_path(dest)
         else:
             return
 
@@ -89,10 +98,7 @@ def copy_path(src, dest, replace):
 
     if os.path.exists(dest):
         if replace or ask_user(dest + " exists, delete it?"):
-            if os.path.isfile(dest):
-                os.remove(dest)
-            else:
-                shutil.rmtree(dest)
+            remove_path(dest)
         else:
             return
 
@@ -104,17 +110,27 @@ def copy_path(src, dest, replace):
         shutil.copytree(src, dest)
 
 
+def remove_path(path):
+    """Remove a target path, regardless if it's a link, folder, or file."""
+    if os.path.isfile(path):
+        os.remove(path)
+    elif os.path.isdir(path):
+        shutil.rmtree(path)
+    else:
+        raise RuntimeError("Path {0} cannot be removed.".format(path))
+
+
 def run_command(command):
     """Run a single CLI command."""
     os.system(command)
 
 
 def clone_repo(repo_url, dest):
-    """Clonesa git repo in to the provided destination."""
+    """Clones a Git repo in to the provided destination."""
     run_command("git clone {0} {1}".format(repo_url, dest))
 
 
-def _merge_dicts(*args):
+def merge_dicts(*args):
     """Merge an arbitrary amount of dictionaries together."""
     res = {}
 
@@ -141,30 +157,149 @@ def program_exists(program):
 
 def parse_args(args):
     """Parse the incoming CLI args for dotty."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("config",
+    argspec = signature(dotty)
+
+    def format_val(key):
+        """Return the `action` value for the argument based on argspec."""
+        if PY2:
+            val = argspec.default[argspec[0].index(key)]
+        else:
+            val = argspec.parameters[key].default
+
+        return str(val).lower()
+
+    parser = argparse.ArgumentParser(usage=inspect.cleandoc(dotty.__doc__))
+    parser.add_argument("json_config",
                         help="the JSON file you want to use",
                         type=open)
+    parser.add_argument("-f",
+                        "--firstrun",
+                        action="store_{0}".format(format_val('firstrun')),
+                        help="runs all the directives available in the config")
     parser.add_argument("-r",
                         "--replace",
-                        action="store_true",
+                        action="store_{0}".format(format_val('replace')),
                         help="replace files/folders if they already exist")
+    parser.add_argument("-l",
+                        "--link",
+                        action="store_{0}".format(format_val('link')),
+                        help="symlink links")
+    parser.add_argument("-c",
+                        "--copy",
+                        action="store_{0}".format(format_val('copy')),
+                        help="copy paths")
+    parser.add_argument("-d",
+                        "--directories",
+                        action="store_{0}".format(format_val('directories')),
+                        help="create directories")
+    parser.add_argument("--commands",
+                        action="store_{0}".format(format_val('commands')),
+                        help="run commands")
+    parser.add_argument("--install-packages",
+                        action="store_{0}".format(
+                            format_val('install_packages')
+                        ),
+                        help="install packages with system package manager")
+    parser.add_argument("--git-repos",
+                        action="store_{0}".format(format_val('git_repos')),
+                        help="clone Git repos")
     args = parser.parse_args(args)
 
     # Switch to the directory of the target file so all links created will be
     # relative to it.
-    os.chdir(
-        os.path.expanduser(os.path.abspath(os.path.dirname(args.config.name)))
-    )
+    os.chdir(os.path.expanduser(os.path.abspath(os.path.dirname(
+        args.json_config.name
+    ))))
 
     # Make sure the dict is ordered so the directives execute in the order they
     # are written.
-    args.config = json.load(args.config, object_pairs_hook=OrderedDict)
+    args.json_config = json.load(args.json_config,
+                                 object_pairs_hook=OrderedDict)
 
     return args
 
 
-def dotty(data=None, replace=False):
+def get_platform_data(data, key, default=None):
+    """Return config keys relevant to the current operating system."""
+    if not default:
+        default = []
+
+    return data.get(PLATFORM, {}).get(key, default)
+
+
+def linker(data, replace):
+    """Create symlinks from the provided mappings."""
+    links = merge_dicts(
+        data.get("link", {}),
+        get_platform_data(data, "link", default={})
+    )
+
+    for src, dest in links.items():
+        create_symlink(src, dest, replace)
+
+
+def copy_paths(data, replace):
+    """Copy paths from the provided mappings."""
+    paths = merge_dicts(
+        data.get("copy", {}),
+        get_platform_data(data, "copy", default={})
+    )
+
+    for src, dest in paths.items():
+        copy_path(src, dest, replace)
+
+
+def run_commands(data):
+    """Run commands from the provided mappings."""
+    commands = (data.get("commands", []) +
+                get_platform_data(data, "commands"))
+
+    for command in commands:
+        run_command(command)
+
+
+def clone_repos(data):
+    """Clone Git repos from the provided mappings."""
+    repos = merge_dicts(
+        data.get('git_repos', {}),
+        get_platform_data(data, 'git_repos', default={})
+    )
+
+    for repo, dest in repos.items():
+        clone_repo(repo, dest)
+
+
+def create_directories(data, replace):
+    """Create directories from the provided config data."""
+    directories = (data.get("directories", []) +
+                   get_platform_data(data, "directories"))
+
+    for path in directories:
+        create_directory(path, replace)
+
+
+def install_system_packages(data, manager):
+    """Install system packages from the provided config data."""
+    packages = data.get(manager, [])
+
+    if not packages or not program_exists(manager):
+        return
+
+    if manager == "pacman" and PLATFORM == "Linux":
+        run_command("sudo pacman -S {0}".format(" ".join(packages)))
+
+    if manager == "apt-get" and PLATFORM == "Linux":
+        run_command("sudo apt-get update && "
+                    "sudo apt-get install {0}".format(" ".join(packages)))
+
+    if manager and PLATFORM == "Darwin":
+        run_command("brew update && "
+                    "brew install {0}".format(" ".join(packages)))
+
+
+def dotty(json_config=None, replace=True, link=True, copy=True,
+          directories=True, install_packages=False, git_repos=False,
+          commands=False, firstrun=False, cli=False):
     """Run the dotty linker.
 
     An example of the JSON needs to look for this to function properly is like
@@ -195,7 +330,7 @@ def dotty(data=None, replace=False):
             },
             // Install Packages with package manager if on correct system.
             "brew": ["macvim"],
-            "apt": ["vim-nox"],
+            "apt-get": ["vim-nox"],
             "pacman": ["vim"],
             // Conditional links depending on the output of `platform.system()`
             "system": {
@@ -213,59 +348,37 @@ def dotty(data=None, replace=False):
         }
 
     Args:
-        data (dict): The JSON mappings to link.
+        config (dict|collections.OrderedDict): The JSON mappings to link. If
+            run from the CLI, the mappings are loaded into an `OrderedDict` so
+            that the commands run in the exact order provided.
         replace (bool): Should existing symlinks, files, and directories be
             replaced?
     """
-    if not data:
-        args = parse_args(sys.argv[1:])
-        js = args.config
-        replace = args.replace
-    elif isinstance(data, dict):
-        js = data
-    else:
-        raise RuntimeError("Data must be provided in the form of a CLI arg "
-                           "or dict.")
+    if not json_config:
+        if not cli:
+            return dotty(cli=True, **vars(parse_args(sys.argv[1:])))
 
-    # Check the OS
-    os_type = platform.system()
-    platform_js = js.get(os_type, {})
+        raise RuntimeError("Data must be provided in the form of a CLI arg or "
+                           "dict.")
 
-    directories = (js.get("directories", []) +
-                   platform_js.get("directories", []))
-    links = _merge_dicts(js.get("link", {}), platform_js.get("link", {}))
-    copy = _merge_dicts(js.get("copy", {}), platform_js.get("copy", {}))
-    commands = js.get("commands", []) + platform_js.get("commands", [])
-    git_repos = _merge_dicts(js.get('git_repos', {}),
-                             platform_js.get('git_repos', {}))
-    pacman = js.get("pacman", [])
-    apt = js.get("apt", [])
-    brew = js.get("brew", [])
+    for key in json_config:
+        if key == "directories" and (firstrun or directories):
+            create_directories(json_config, replace)
 
-    for path in directories:
-        create_directory(path, replace)
+        elif key == "copy" and (firstrun or copy):
+            copy_paths(json_config, replace)
 
-    for repo, path in git_repos.items():
-        clone_repo(repo, path)
+        elif key == "git_repos" and (firstrun or git_repos):
+            clone_repos(json_config)
 
-    for src, dest in links.items():
-        create_symlink(src, dest, replace)
+        elif key == "link" and (firstrun or link):
+            linker(json_config, replace)
 
-    for src, dest in copy.items():
-        copy_path(src, dest, replace)
+        elif key in PACKAGE_MANAGERS and (firstrun or install_packages):
+            install_system_packages(json_config, key)
 
-    for command in commands:
-        run_command(command)
-
-    if all((pacman, os_type == "Linux", program_exists("pacman"))):
-        run_command("sudo pacman -S {0}".format(" ".join(pacman)))
-
-    if all((apt, os_type == "Linux", program_exists("apt-get"))):
-        run_command("sudo apt-get update && "
-                    "sudo apt-get install {0}".format(" ".join(apt)))
-
-    if all((brew, os_type == "Darwin", program_exists("brew"))):
-        run_command("brew update && brew install {0}".format(" ".join(brew)))
+        elif key == "commands" and (firstrun or commands):
+            run_commands(json_config)
 
     print("Done!")
 

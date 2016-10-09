@@ -1,5 +1,5 @@
 # Test files
-tests/assets
+tests/assets*
 
 # Created by https://www.gitignore.io/api/python
 

@@ -31,9 +31,9 @@ def get_mtimes(path):
     return mtimes
 
 
-def asset_join(path):
+def asset_join(*paths):
     """Return a path that is suitable for the tests to use."""
-    return os.path.abspath(os.path.join(ASSETS_DIR, path))
+    return os.path.abspath(os.path.join(ASSETS_DIR, *paths))
 
 
 def transform_paths(mappings):

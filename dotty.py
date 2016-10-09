@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Dotty is a little python script for syncing dotfiles from a Git repo."""
 
 # Copyright (C) 2015 Vibhav Pant <vibhavp@gmail.com>
@@ -31,7 +31,6 @@ from distutils.util import strtobool
 
 PY2 = sys.version_info[0] < 3
 PLATFORM = platform.system()
-SILENT = False
 PACKAGE_MANAGERS = (
     'apt-get',
     'brew',
@@ -39,7 +38,7 @@ PACKAGE_MANAGERS = (
 )
 
 if PY2:
-    user_input = raw_input  # flake8: F821
+    user_input = raw_input
     signature = inspect.getargspec
 else:
     user_input = input
@@ -63,10 +62,10 @@ def create_directory(path, replace):
     exp = os.path.expanduser(path)
 
     if os.path.isdir(path) and replace:
-        shutil.rmtree(path)
+        remove_path(path)
 
     if not os.path.isdir(exp):
-        print(exp + " does not exist, creating.")
+        print("{0} does not exist, creating.".format(exp))
         os.makedirs(exp)
 
 
@@ -79,9 +78,10 @@ def create_symlink(src, dest, replace):
         is_same = (os.path.islink(dest) and os.readlink(dest) == src)
 
         if is_same and not replace:
-            print("Skipping existing {0} -> {1}".format(dest, src))
+            print("Skipping existing {0} -> {1}".format(src, dest))
             return
-        elif replace or ask_user(dest + " exists, delete it?"):
+
+        if replace or ask_user(dest + " exists, delete it?"):
             remove_path(dest)
         else:
             return
@@ -97,7 +97,7 @@ def copy_path(src, dest, replace):
     src = os.path.abspath(src)
 
     if os.path.exists(dest):
-        if replace or ask_user(dest + " exists, delete it?"):
+        if replace or ask_user("{0} exists, delete it?".format(dest)):
             remove_path(dest)
         else:
             return
@@ -113,9 +113,9 @@ def copy_path(src, dest, replace):
 def remove_path(path):
     """Remove a target path, regardless if it's a link, folder, or file."""
     if os.path.isfile(path):
-        os.remove(path)
+        os.unlink(path)
     elif os.path.isdir(path):
-        shutil.rmtree(path)
+        shutil.rmtree(path, ignore_errors=True)
     else:
         raise RuntimeError("Path {0} cannot be removed.".format(path))
 
@@ -126,7 +126,7 @@ def run_command(command):
 
 
 def clone_repo(repo_url, dest):
-    """Clones a Git repo in to the provided destination."""
+    """Clone a Git repo into the provided destination."""
     run_command("git clone {0} {1}".format(repo_url, dest))
 
 
@@ -162,7 +162,7 @@ def parse_args(args):
     def format_val(key):
         """Return the `action` value for the argument based on argspec."""
         if PY2:
-            val = argspec.default[argspec[0].index(key)]
+            val = argspec.defaults[argspec[0].index(key)]
         else:
             val = argspec.parameters[key].default
 

@@ -135,9 +135,14 @@ def package_list(request):
     patch.stop()
 
 
-@pytest.fixture
-def assets(link_mapping, copy_file_mapping, copy_folder_mapping):
-    """Fixture that will create the tests assets and delete them."""
+@pytest.fixture(params=(True, False))
+def assets(request, link_mapping, copy_file_mapping, copy_folder_mapping):
+    """Fixture that will create the tests assets and delete them.
+
+    Returns:
+        bool: This is a parametrized fixture and the value returned is whether
+            or not the `dotty` call should include the flag being tested.
+    """
     for folder in ('src', 'target'):
         folder = os.path.join(ASSETS_DIR, folder)
         if not os.path.exists(folder):
@@ -153,7 +158,7 @@ def assets(link_mapping, copy_file_mapping, copy_folder_mapping):
             with open(test_file, 'w') as filehandler:
                 filehandler.write('a')
 
-    yield {'pytest': 'is silly about yield'}
+    yield request.param
 
     cleanup_assets()
 

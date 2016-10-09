@@ -2,13 +2,14 @@
 
 import os
 from collections import OrderedDict
-from decimal import Decimal
 
-from dotty import PY2, ask_user, dotty, parse_args, program_exists, run_command
+from dotty import (
+    PY2, ask_user, dotty, merge_dicts, parse_args, program_exists, remove_path,
+    run_command,
+)
 import mock
 import pytest
 
-from tests.conftest import ASSETS_DIR
 from tests.utils import fake_git_clone, get_mtimes, noop, transform_paths
 
 
@@ -18,30 +19,35 @@ def test_data_must_be_present():
         dotty(cli=True)
 
 
-@mock.patch('dotty.ask_user', return_value=True)
-def test_link_files(mock_ask, assets, link_mapping):
+def test_link_files(mock_ask_user, assets, link_mapping):
     """Ensure that files link correctly."""
+    enabled, replace = assets
     payload = {'link': link_mapping}
-    dotty(json_config=payload, link=assets)
+    dotty(json_config=payload, link=enabled, replace=replace)
 
     for src, target in link_mapping.items():
-        assert os.path.islink(target) is assets
-        assert (os.path.realpath(target) == os.path.abspath(src)) is assets
+        assert os.path.islink(target) is enabled
+        assert (os.path.realpath(target) == os.path.abspath(src)) is enabled
 
-    assert mock_ask.call_count is not None
+    assert mock_ask_user.call_count >= 0
 
 
-@mock.patch('dotty.ask_user', return_value=True)
-def test_copy_files(mock_ask, assets, copy_file_mapping):
+def test_copy_files(mock_ask_user, assets, copy_file_mapping,
+                    copy_folder_mapping):
     """Ensure that files are copied correctly."""
-    payload = {'copy': copy_file_mapping}
-    dotty(json_config=payload, copy=assets)
+    enabled, replace = assets
+    payload = {'copy': merge_dicts(copy_file_mapping, copy_folder_mapping)}
+    dotty(json_config=payload, copy=enabled, replace=replace)
 
     for target in copy_file_mapping.values():
         assert not os.path.islink(target)
-        assert os.path.isfile(target) is assets
+        assert os.path.isfile(target) is enabled
 
-    assert mock_ask.call_count is not None
+    for target in copy_folder_mapping.values():
+        assert not os.path.islink(target)
+        assert os.path.isdir(target) is enabled
+
+    assert mock_ask_user.call_count >= 0
 
 
 @pytest.mark.parametrize('enabled', (True, False))
@@ -54,26 +60,20 @@ def test_create_directories(directory_list, enabled):
         assert os.path.isdir(directory) is enabled
 
 
-@pytest.mark.xfail(reason=("The tests run so fast that time collisions can "
-                           "happen. Looking at the values during the test, "
-                           "there was enough variance to xfail this."))
-def test_replace_items(assets, copy_link_payload):
+def test_replace_items(mock_ask_user, assets, copy_link_payload):
     """Ensure items can be replaced if needed."""
-    patcher = mock.patch('dotty.ask_user', return_value=True)
-    patcher.start()
+    enabled, replace = assets
 
     # Create things
     dotty(json_config=copy_link_payload, firstrun=True)
     og_times = get_mtimes(transform_paths('target'))
 
     # Replace everything
-    dotty(json_config=copy_link_payload, firstrun=assets)
+    dotty(json_config=copy_link_payload, firstrun=enabled, replace=replace)
     new_times = get_mtimes(transform_paths('target'))
 
-    patcher.stop()
-
     # If they have been replaced the times should be different
-    assert (new_times == og_times) != assets
+    assert (new_times == og_times) != replace
 
 
 @pytest.mark.parametrize('enabled', (True, False))
@@ -183,3 +183,9 @@ def test_program_exists(use_shutil, program, passing):
 
     if not use_shutil:
         patcher.stop()
+
+
+def test_remove_path_error():
+    """Ensure that remove_path will raise an error when path doesn't exist."""
+    with pytest.raises(RuntimeError):
+        remove_path('doesnt-exist')

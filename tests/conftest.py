@@ -3,6 +3,7 @@
 import json
 import os
 from collections import OrderedDict
+from itertools import product
 
 from dotty import merge_dicts
 import mock
@@ -135,23 +136,24 @@ def package_list(request):
     patch.stop()
 
 
-@pytest.fixture(params=(True, False))
+@pytest.fixture(params=product((True, False), (True, False)))
 def assets(request, link_mapping, copy_file_mapping, copy_folder_mapping):
     """Fixture that will create the tests assets and delete them.
 
     Returns:
-        bool: This is a parametrized fixture and the value returned is whether
-            or not the `dotty` call should include the flag being tested.
+        tuple(bool): This is a parametrized fixture and the value returned is
+            whether or not the `dotty` call should include the flag being
+            tested and if `dotty` should be run with `replace`.
     """
     for folder in ('src', 'target'):
-        folder = os.path.join(ASSETS_DIR, folder)
+        folder = transform_paths(folder)
         if not os.path.exists(folder):
             os.makedirs(folder)
 
-    # for folder in copy_folder_mapping.keys():
-    #     folder = os.path.join(ASSETS_DIR, folder)
-    #     if not os.path.exists(folder):
-    #         os.makedirs(folder)
+    for folder in copy_folder_mapping.keys():
+        folder = transform_paths(folder)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
 
     for mapping in (link_mapping, copy_file_mapping):
         for test_file in mapping.keys():
@@ -194,3 +196,11 @@ def dotty_json_file(full_mapping):
     yield path
 
     cleanup_assets()
+
+
+@pytest.fixture(params=(True, False))
+def mock_ask_user(request):
+    """Mock ask_user with a parametrized fixture."""
+    patch = mock.Mock('dotty.ask_user', return_value=request.param)
+
+    return patch

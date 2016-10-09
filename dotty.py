@@ -19,8 +19,8 @@
 from __future__ import print_function
 
 import argparse
-import json
 import inspect
+import json
 import os
 import platform
 import shutil
@@ -38,7 +38,7 @@ PACKAGE_MANAGERS = (
 )
 
 if PY2:
-    user_input = raw_input
+    user_input = raw_input  # noqa: ignore=F821
     signature = inspect.getargspec
 else:
     user_input = input
@@ -360,6 +360,9 @@ def dotty(json_config=None, replace=True, link=True, copy=True,
 
         raise RuntimeError("Data must be provided in the form of a CLI arg or "
                            "dict.")
+
+    if firstrun:
+        replace = True
 
     for key in json_config:
         if key == "directories" and (firstrun or directories):

@@ -213,7 +213,8 @@ def dotty(data={}, replace=False):
 
     Args:
         data (dict): The JSON mappings to link.
-        replace (bool): Should existing symlinks and directories be replaced?
+        replace (bool): Should existing symlinks, files, and directories be
+            replaced?
     """
     if not data:
         args = parse_args(sys.argv[1:])

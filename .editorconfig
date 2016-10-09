@@ -1,0 +1,12 @@
+[*]
+end_of_line = lf
+insert_final_newline = True
+charset = utf-8
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.org]
+indent_style = space
+indent_size = 2

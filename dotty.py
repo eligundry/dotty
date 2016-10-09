@@ -31,7 +31,7 @@ from distutils.util import strtobool
 PY2 = sys.version_info[0] < 3
 
 if PY2:
-    user_input = raw_input
+    user_input = raw_input  # flake8: F821
 else:
     user_input = input
 
@@ -164,7 +164,7 @@ def parse_args(args):
     return args
 
 
-def dotty(data={}, replace=False):
+def dotty(data=None, replace=False):
     """Run the dotty linker.
 
     An example of the JSON needs to look for this to function properly is like
@@ -221,8 +221,11 @@ def dotty(data={}, replace=False):
         args = parse_args(sys.argv[1:])
         js = args.config
         replace = args.replace
-    else:
+    elif isinstance(data, dict):
         js = data
+    else:
+        raise RuntimeError("Data must be provided in the form of a CLI arg "
+                           "or dict.")
 
     # Check the OS
     os_type = platform.system()

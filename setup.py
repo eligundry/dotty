@@ -27,4 +27,9 @@ setup(
     },
     setup_requires=TEST_RUNNER,
     tests_require=TESTS_REQUIRE,
+    entry_points={
+        'console_scripts': [
+            'dotty=dotty:dotty'
+        ],
+    }
 )

@@ -18,6 +18,13 @@ Dotty is a little python script for syncing dotfiles stored on your git repo.
 
   ~git submodule update --remote dotty~
 
+  dotty can also be installed via pip and run via the ~PATH~.:
+
+  #+BEGIN_SRC sh
+    $ pip install dotty
+    $ dotty dotty.json
+  #+END_SRC
+
 * Configuration
   Dotty uses a JSON-formatted config located on the root of your dotfile repository.
   Currently, dotty can create/check ~directories~, ~link~ or ~copy~ files/directories,
@@ -25,46 +32,46 @@ Dotty is a little python script for syncing dotfiles stored on your git repo.
 
 * Example
   #+BEGIN_SRC javascript
-	{
-		// Create Directories
-		"directories": ["~/emacs.d"],
-		// Link Files
-		"link": {
-			"source": "dest",
-			"zshrc": "~/.zshrc"
-			// Directories can be linked too
-			"emacs/lisp/": "~/.emacs.d/lisp"
-		},
-		// Copy Files & Directories
-		"copy": {
-			"offlineimaprc": "~/.offlineimaprc"
-		},
-		// Run Commands
-		"commands": [
-			"emacs -batch -Q -l ~/.emacs.d/firstrun.el"
-		],
-		// Git Repos to clone
-		"git_repos": {
-			"https://github.com/robbyrussell/oh-my-zsh.git": "~/.oh-my-zsh"
-		},
-		// Install Packages with package manager if on correct system.
-		"brew": ["macvim"],
-		"apt": ["vim-nox"],
-		"pacman": ["vim"],
-		// Conditional links depending on the output of `platform.system()`
-		"system": {
-			"Darwin": {
-				"link": {
-					"iterm-2.0-profiles.json": "~/.iterm-2.0-profiles.json"
-				}
-			},
-			"Linux": {
-				"link": {
-					"config/terminator.conf": "~/.config/terminator.conf"
-				}
-			}
-		}
-	}
+  {
+      // Create Directories
+      "directories": ["~/emacs.d"],
+      // Link Files
+      "link": {
+          "source": "dest",
+          "zshrc": "~/.zshrc"
+          // Directories can be linked too
+          "emacs/lisp/": "~/.emacs.d/lisp"
+      },
+      // Copy Files & Directories
+      "copy": {
+          "offlineimaprc": "~/.offlineimaprc"
+      },
+      // Run Commands
+      "commands": [
+          "emacs -batch -Q -l ~/.emacs.d/firstrun.el"
+      ],
+      // Git Repos to clone
+      "git_repos": {
+          "https://github.com/robbyrussell/oh-my-zsh.git": "~/.oh-my-zsh"
+      },
+      // Install Packages with package manager if on correct system.
+      "brew": ["macvim"],
+      "apt": ["vim-nox"],
+      "pacman": ["vim"],
+      // Conditional links depending on the output of `platform.system()`
+      "system": {
+          "Darwin": {
+              "link": {
+                  "iterm-2.0-profiles.json": "~/.iterm-2.0-profiles.json"
+              }
+          },
+          "Linux": {
+              "link": {
+                  "config/terminator.conf": "~/.config/terminator.conf"
+              }
+          }
+      }
+  }
   #+END_SRC
 
 * Usage
@@ -81,11 +88,13 @@ Dotty is a little python script for syncing dotfiles stored on your git repo.
 
 * Tests
   Running tests is as simple as:
+
   #+BEGIN_SRC sh
     $ python setup.py test
   #+END_SRC
 
   If testing against multiple versions is what you desire:
+
   #+BEGIN_SRC sh
     $ tox
   #+END_SRC

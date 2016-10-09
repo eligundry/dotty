@@ -8,8 +8,9 @@ TESTS_REQUIRE = (
     'pytest',
     'pytest-cov',
     'pytest-mock',
+    'tox',
 )
-TEST_RUNNER = ['pytest-runner']
+TEST_RUNNER = ('pytest-runner',)
 
 
 setup(

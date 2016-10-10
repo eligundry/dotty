@@ -27,6 +27,7 @@ import shutil
 import subprocess
 import sys
 from collections import OrderedDict
+from copy import deepcopy
 from distutils.util import strtobool
 
 PY2 = sys.version_info[0] < 3
@@ -155,6 +156,29 @@ def program_exists(program):
         return False
 
 
+def cleanup(data):
+    """Remove all the files, folders, and links in a provided file."""
+    mappings = deepcopy(data)
+
+    if isinstance(mappings, OrderedDict):
+        mappings = mappings[::-1]
+
+    for key in mappings:
+        if key == "system":
+            cleanup(mappings[key][platform])
+        elif key in ('link', 'copy', 'git_repos', 'directories'):
+            if isinstance(mappings[key], OrderedDict):
+                paths = mappings[key].values()
+            elif isinstance(mappings[key], dict):
+                paths = mappings[key].values()[::-1]
+            else:
+                paths = mappings[key]
+
+            for path in paths:
+                print("Deleting {0}".format(path))
+                remove_path(path)
+
+
 def parse_args(args):
     """Parse the incoming CLI args for dotty."""
     argspec = signature(dotty)
@@ -168,7 +192,10 @@ def parse_args(args):
 
         return str(val).lower()
 
-    parser = argparse.ArgumentParser(usage=inspect.cleandoc(dotty.__doc__))
+    parser = argparse.ArgumentParser(
+        usage=inspect.cleandoc(dotty.__doc__),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("json_config",
                         help="the JSON file you want to use",
                         type=open)
@@ -203,6 +230,9 @@ def parse_args(args):
     parser.add_argument("--git-repos",
                         action="store_{0}".format(format_val('git_repos')),
                         help="clone Git repos")
+    parser.add_argument("--clean",
+                        action="store_{0}".format(format_val('clean')),
+                        help="clean up the files in the provided JSON")
     args = parser.parse_args(args)
 
     # Switch to the directory of the target file so all links created will be
@@ -299,7 +329,7 @@ def install_system_packages(data, manager):
 
 def dotty(json_config=None, replace=True, link=True, copy=True,
           directories=True, install_packages=False, git_repos=False,
-          commands=False, firstrun=False, cli=False):
+          commands=False, firstrun=False, cli=False, clean=False):
     """Run the dotty linker.
 
     An example of the JSON needs to look for this to function properly is like
@@ -360,6 +390,11 @@ def dotty(json_config=None, replace=True, link=True, copy=True,
 
         raise RuntimeError("Data must be provided in the form of a CLI arg or "
                            "dict.")
+
+    if clean:
+        cleanup(json_config)
+        print("Removed all files!")
+        return
 
     if firstrun:
         replace = True

@@ -172,10 +172,10 @@ def full_mapping(link_mapping, copy_file_mapping, directory_list,
     """Create full dotty mapping in an OrderedDict."""
     return OrderedDict((
         ('directories', directory_list),
-        ('link', link_mapping),
         ('copy', merge_dicts(copy_file_mapping, copy_folder_mapping)),
-        ('commands', command_list),
         ('git_repos', git_repo_mapping),
+        ('link', link_mapping),
+        ('commands', command_list),
         (package_list[1], package_list[0])
     ))
 

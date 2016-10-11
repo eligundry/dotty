@@ -72,8 +72,7 @@ def copy_link_payload(link_mapping, copy_file_mapping, copy_folder_mapping,
     yield {
         'directories': directory_list,
         'link': link_mapping,
-        # 'copy': merge_dicts(copy_file_mapping, copy_folder_mapping),
-        'copy': copy_file_mapping,
+        'copy': merge_dicts(copy_file_mapping, copy_folder_mapping),
     }
 
     cleanup_assets()

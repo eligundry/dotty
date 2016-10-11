@@ -66,7 +66,7 @@ def create_directory(path, replace):
         remove_path(path)
 
     if not os.path.isdir(exp):
-        print("{0} does not exist, creating.".format(exp))
+        print("Creating {0}".format(exp))
         os.makedirs(exp)
 
 
@@ -82,7 +82,7 @@ def create_symlink(src, dest, replace):
             print("Skipping existing {0} -> {1}".format(src, dest))
             return
 
-        if replace or ask_user("{0} exists, delete it?".format(dest)):
+        if replace or ask_user("Link {0} exists, delete it?".format(dest)):
             remove_path(dest)
         else:
             return
@@ -96,16 +96,18 @@ def copy_path(src, dest, replace):
     """Copy a file or a folder into the provided destination."""
     dest = os.path.expanduser(dest)
     src = os.path.abspath(src)
+    is_file = os.path.isfile(src)
 
     if os.path.exists(dest):
-        if replace or ask_user("{0} exists, delete it?".format(dest)):
+        if replace or ask_user("{0} {1} exists, delete it?".format(
+                'File' if is_file else 'Folder', dest)):
             remove_path(dest)
         else:
             return
 
     print("Copying {0} -> {1}".format(src, dest))
 
-    if os.path.isfile(src):
+    if is_file:
         shutil.copy(src, dest)
     else:
         shutil.copytree(src, dest)
@@ -183,14 +185,14 @@ def parse_args(args):
     """Parse the incoming CLI args for dotty."""
     argspec = signature(dotty)
 
-    def format_val(key):
+    def spec_val(key):
         """Return the `action` value for the argument based on argspec."""
         if PY2:
             val = argspec.defaults[argspec[0].index(key)]
         else:
             val = argspec.parameters[key].default
 
-        return str(val).lower()
+        return val
 
     parser = argparse.ArgumentParser(
         usage=inspect.cleandoc(dotty.__doc__),
@@ -204,37 +206,44 @@ def parse_args(args):
     # params.
     parser.add_argument("-f",
                         "--firstrun",
-                        action="store_{0}".format(format_val('firstrun')),
+                        action="store_true",
+                        default=spec_val('firstrun'),
                         help="runs all the directives available in the config")
     parser.add_argument("-r",
                         "--replace",
-                        action="store_{0}".format(format_val('replace')),
+                        action="store_true",
+                        default=spec_val('replace'),
                         help="replace files/folders if they already exist")
     parser.add_argument("-l",
                         "--link",
-                        action="store_{0}".format(format_val('link')),
+                        action="store_true",
+                        default=spec_val('link'),
                         help="symlink links")
     parser.add_argument("-c",
                         "--copy",
-                        action="store_{0}".format(format_val('copy')),
+                        action="store_true",
+                        default=spec_val('link'),
                         help="copy paths")
     parser.add_argument("-d",
                         "--directories",
-                        action="store_{0}".format(format_val('directories')),
+                        action="store_true",
+                        default=spec_val('directories'),
                         help="create directories")
     parser.add_argument("--commands",
-                        action="store_{0}".format(format_val('commands')),
+                        action="store_true",
+                        default=spec_val('commands'),
                         help="run commands")
     parser.add_argument("--install-packages",
-                        action="store_{0}".format(
-                            format_val('install_packages')
-                        ),
+                        action="store_true",
+                        default=spec_val('install_packages'),
                         help="install packages with system package manager")
     parser.add_argument("--git-repos",
-                        action="store_{0}".format(format_val('git_repos')),
+                        action="store_true",
+                        default=spec_val('install_packages'),
                         help="clone Git repos")
     parser.add_argument("--clean",
-                        action="store_{0}".format(format_val('clean')),
+                        action="store_true",
+                        default=spec_val('clean'),
                         help="clean up the files in the provided JSON")
     args = parser.parse_args(args)
 

@@ -1,16 +1,19 @@
 """Unit tests to ensure that dotty is working properly."""
 
+import json
 import os
 from collections import OrderedDict
 
 from dotty import (
-    PY2, ask_user, dotty, merge_dicts, parse_args, program_exists, remove_path,
-    run_command,
+    PLATFORM, PY2, ask_user, dotty, merge_dicts, parse_args, program_exists,
+    remove_path, run_command,
 )
 import mock
 import pytest
 
-from tests.utils import fake_git_clone, get_mtimes, noop, transform_paths
+from tests.utils import (
+    asset_join, fake_git_clone, get_mtimes, noop, transform_paths
+)
 
 
 def test_data_must_be_present():
@@ -194,13 +197,34 @@ def test_remove_path_error():
         remove_path('doesnt-exist')
 
 
-@pytest.mark.parametrize('dict_type', (dict, OrderedDict))
+@pytest.mark.parametrize('dict_type', (dict, OrderedDict, 'file'))
 @mock.patch('dotty.run_command', side_effect=noop)
 @mock.patch('dotty.clone_repo', side_effect=fake_git_clone)
-def test_clean(mock_run, assets, full_mapping, dict_type):
+def test_clean(mock_clone, mock_run, assets, full_mapping, dict_type,
+               dotty_json_file):
     """Ensure that cleanup works as expected."""
-    full_mapping = dict_type(full_mapping)
+    if dict_type == 'file':
+        with open(asset_join(dotty_json_file)) as json_fp:
+            full_mapping = json.load(json_fp, object_pairs_hook=OrderedDict)
+    else:
+        full_mapping = dict_type(full_mapping)
+
     dotty(json_config=full_mapping, firstrun=True)
     dotty(json_config=full_mapping, clean=True)
 
     assert os.listdir(transform_paths('target')) == []
+
+    def mapping_test(mapping):
+        for key, value in full_mapping.items():
+            if key in ('link', 'copy'):
+                for path in value:
+                    assert any([
+                        os.path.isfile(path),
+                        os.path.isdir(path),
+                    ])
+            elif key == 'system':
+                mapping_test(value[PLATFORM])
+
+        return True
+
+    assert mapping_test(full_mapping)

@@ -82,7 +82,7 @@ def create_symlink(src, dest, replace):
             print("Skipping existing {0} -> {1}".format(src, dest))
             return
 
-        if replace or ask_user(dest + " exists, delete it?"):
+        if replace or ask_user("{0} exists, delete it?".format(dest)):
             remove_path(dest)
         else:
             return
@@ -161,18 +161,18 @@ def cleanup(data):
     mappings = deepcopy(data)
 
     if isinstance(mappings, OrderedDict):
-        mappings = mappings[::-1]
+        mappings = OrderedDict(reversed(list(mappings.items())))
 
-    for key in mappings:
+    for key, value in mappings.items():
         if key == "system":
-            cleanup(mappings[key][platform])
+            cleanup(value[platform])
         elif key in ('link', 'copy', 'git_repos', 'directories'):
-            if isinstance(mappings[key], OrderedDict):
-                paths = mappings[key].values()
-            elif isinstance(mappings[key], dict):
-                paths = mappings[key].values()[::-1]
+            if isinstance(value, OrderedDict):
+                paths = OrderedDict(reversed(list(value.items()))).values()
+            elif isinstance(value, dict):
+                paths = value.values()
             else:
-                paths = mappings[key]
+                paths = value
 
             for path in paths:
                 print("Deleting {0}".format(path))
@@ -199,6 +199,9 @@ def parse_args(args):
     parser.add_argument("json_config",
                         help="the JSON file you want to use",
                         type=open)
+    # The action key is getting formatted like that in order to use dotty's
+    # argspec as the only source of truth for the default values of the CLI
+    # params.
     parser.add_argument("-f",
                         "--firstrun",
                         action="store_{0}".format(format_val('firstrun')),
@@ -310,21 +313,21 @@ def create_directories(data, replace):
 
 def install_system_packages(data, manager):
     """Install system packages from the provided config data."""
-    packages = data.get(manager, [])
+    packages = " ".join(data.get(manager, []))
 
     if not packages or not program_exists(manager):
         return
 
     if manager == "pacman" and PLATFORM == "Linux":
-        run_command("sudo pacman -S {0}".format(" ".join(packages)))
+        run_command("sudo pacman -S {0}".format(packages))
 
-    if manager == "apt-get" and PLATFORM == "Linux":
+    elif manager == "apt-get" and PLATFORM == "Linux":
         run_command("sudo apt-get update && "
-                    "sudo apt-get install {0}".format(" ".join(packages)))
+                    "sudo apt-get install {0}".format(packages))
 
-    if manager and PLATFORM == "Darwin":
+    elif manager and PLATFORM == "Darwin":
         run_command("brew update && "
-                    "brew install {0}".format(" ".join(packages)))
+                    "brew install {0}".format(packages))
 
 
 def dotty(json_config=None, replace=True, link=True, copy=True,

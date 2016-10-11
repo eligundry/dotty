@@ -176,7 +176,7 @@ def full_mapping(link_mapping, copy_file_mapping, directory_list,
         ('git_repos', git_repo_mapping),
         ('link', link_mapping),
         ('commands', command_list),
-        (package_list[1], package_list[0])
+        (package_list[1], package_list[0]),
     ))
 
 

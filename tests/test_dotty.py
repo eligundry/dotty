@@ -160,13 +160,11 @@ def test_ask_user(test_input, expected):
     patch.stop()
 
 
-def test_ask_user_recursion():
+@mock.patch('tests.test_dotty.dotty.user_input', side_effect=('not-valid', '3', 'y'))
+def test_ask_user_recursion(mocked_ask_user):
     """Ensure the ask_user asks again when an invalid value is provided."""
-    patch = mock.Mock('builtins.input')
-    patch.side_effect = ['invalid', '3', '1']
-
     assert dotty.ask_user('You mad?')
-    assert patch.call_count == 3
+    assert mocked_ask_user.call_count == 3
 
 
 def test_raw_run_command():
@@ -191,6 +189,7 @@ def test_parse_args(mock_chdir, dotty_json_file, full_mapping):
     assert not args.commands
     assert not args.firstrun
     assert not args.clean
+
 
 @pytest.mark.parametrize('use_shutil,program,passing', (
     (True, 'python', True),

@@ -22,9 +22,7 @@ def link_mapping():
         'src/zshrc': 'target/.zshrc',
     }
 
-    yield transform_paths(mappings)
-
-    cleanup_assets()
+    return transform_paths(mappings)
 
 
 @pytest.fixture
@@ -35,9 +33,7 @@ def copy_file_mapping():
         'src/offlineimaprc': 'target/.offlineimaprc',
     }
 
-    yield transform_paths(mappings)
-
-    cleanup_assets()
+    return transform_paths(mappings)
 
 
 @pytest.fixture
@@ -48,45 +44,37 @@ def copy_folder_mapping():
         'src/copy_dir': 'target/.copy_dir',
     }
 
-    yield transform_paths(mappings)
-
-    cleanup_assets()
+    return transform_paths(mappings)
 
 
 @pytest.fixture
 def directory_list():
     """Return a list of directories to create."""
-    yield transform_paths([
+    return transform_paths([
         'target/.dir1',
         'target/.dir2',
         'target/.dir3',
     ])
-
-    cleanup_assets()
 
 
 @pytest.fixture
 def copy_link_payload(link_mapping, copy_file_mapping, copy_folder_mapping,
                       directory_list):
     """Return a fully formed mapping of links and files to copy."""
-    yield {
+    return {
         'directories': directory_list,
         'link': link_mapping,
         'copy': merge_dicts(copy_file_mapping, copy_folder_mapping),
     }
 
-    cleanup_assets()
-
 
 @pytest.fixture
 def git_repo_mapping():
     """Return a mapping of Git repos to clone."""
-    yield transform_paths({
+    return transform_paths({
         'https://github.com/vibhavp/dotty.git': 'target/dotty',
         'https://github.com/robbyrussell/oh-my-zsh.git': 'target/omz',
     })
-
-    cleanup_assets()
 
 
 @pytest.fixture
@@ -130,9 +118,7 @@ def package_list(request):
     patch = mock.patch('dotty.PLATFORM', os_platform)
     patch.start()
 
-    yield (packages, package_manager)
-
-    patch.stop()
+    return (packages, package_manager)
 
 
 @pytest.fixture(params=product((True, False), (True, False)))
@@ -159,9 +145,7 @@ def assets(request, link_mapping, copy_file_mapping, copy_folder_mapping):
             with open(test_file, 'w') as filehandler:
                 filehandler.write('a')
 
-    yield request.param
-
-    cleanup_assets()
+    return request.param
 
 
 @pytest.fixture
@@ -192,14 +176,18 @@ def dotty_json_file(full_mapping):
     with open(path, 'w') as json_fp:
         json.dump(full_mapping, json_fp)
 
-    yield path
-
-    cleanup_assets()
+    return path
 
 
 @pytest.fixture(params=(True, False))
 def mock_ask_user(request):
     """Mock ask_user with a parametrized fixture."""
-    patch = mock.Mock('dotty.ask_user', return_value=request.param)
+    return mock.Mock('dotty.user_input',
+                     return_value=request.param)
 
-    return patch
+
+@pytest.fixture(autouse=True)
+def cleanup_files():
+    """Fixture that is used automatically that will delete all test files."""
+    yield
+    cleanup_assets()

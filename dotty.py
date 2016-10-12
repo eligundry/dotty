@@ -39,11 +39,16 @@ PACKAGE_MANAGERS = (
 )
 
 if PY2:
-    user_input = raw_input  # noqa: ignore=F821
     signature = inspect.getargspec
 else:
-    user_input = input
     signature = inspect.signature
+
+
+def user_input(prompt):
+    if PY2:
+        return raw_input(prompt)
+
+    return input(prompt)
 
 
 def ask_user(prompt):
